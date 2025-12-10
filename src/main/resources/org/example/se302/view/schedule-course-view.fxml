@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="org.example.se302.controller.ScheduleCourseController"
+            styleClass="content-pane">
+
+    <center>
+        <VBox spacing="10">
+            <padding>
+                <Insets top="20" right="20" bottom="20" left="20"/>
+            </padding>
+            <Label text="Course Schedule View" styleClass="section-title"/>
+            <Label text="All courses and their exam assignments" wrapText="true"/>
+            <Separator/>
+            <TableView fx:id="courseScheduleTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="courseCodeColumn" text="Course Code" prefWidth="150"/>
+                    <TableColumn fx:id="enrolledColumn" text="Enrolled Students" prefWidth="120"/>
+                    <TableColumn fx:id="dateColumn" text="Exam Date" prefWidth="150"/>
+                    <TableColumn fx:id="timeColumn" text="Exam Time" prefWidth="150"/>
+                    <TableColumn fx:id="classroomColumn" text="Classroom" prefWidth="150"/>
+                </columns>
+            </TableView>
+        </VBox>
+    </center>
+</BorderPane>

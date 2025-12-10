@@ -38,4 +38,20 @@ build/
 ### Mac OS ###
 .DS_Store
 
+### Claude Code & AI Tools ###
+.claude/
+.claude_code/
+claude_desktop_config.json
+.mcp/
+mcp-server-*/
+.ai/
+.anthropic/
+*_mcp_logs/
+.memory/
+.context/
+
 *.md
+*.txt
+*.pdf
+projectDescriptionFiles
+.mcp.json

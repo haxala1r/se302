@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="org.example.se302.controller.CoursesController"
+            styleClass="content-pane">
+
+    <!-- Top: Search Bar -->
+    <top>
+        <VBox spacing="10">
+            <padding>
+                <Insets top="20" right="20" bottom="10" left="20"/>
+            </padding>
+            <Label text="Course Management" styleClass="section-title"/>
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <TextField fx:id="searchField" promptText="Search by Course Code..." HBox.hgrow="ALWAYS"/>
+                <Button text="Clear" onAction="#onClearSearch"/>
+            </HBox>
+            <Label fx:id="resultCountLabel" text="Total: 0 courses"/>
+        </VBox>
+    </top>
+
+    <!-- Center: Course Table -->
+    <center>
+        <VBox spacing="5">
+            <padding>
+                <Insets top="0" right="20" bottom="10" left="20"/>
+            </padding>
+            <TableView fx:id="coursesTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="courseCodeColumn" text="Course Code" prefWidth="200"/>
+                    <TableColumn fx:id="studentCountColumn" text="Enrolled Students" prefWidth="150"/>
+                    <TableColumn fx:id="classroomColumn" text="Assigned Classroom" prefWidth="150"/>
+                    <TableColumn fx:id="examDateColumn" text="Exam Date/Time" prefWidth="150"/>
+                    <TableColumn fx:id="actionColumn" text="Actions" prefWidth="150"/>
+                </columns>
+            </TableView>
+        </VBox>
+    </center>
+
+    <!-- Bottom: Student List Panel (initially hidden) -->
+    <bottom>
+        <VBox fx:id="studentListPanel" spacing="10" styleClass="detail-panel" visible="false" managed="false"
+              prefHeight="250">
+            <padding>
+                <Insets top="10" right="20" bottom="20" left="20"/>
+            </padding>
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <Label fx:id="studentListTitleLabel" text="Students Enrolled" styleClass="subsection-title" HBox.hgrow="ALWAYS"/>
+                <Button text="Close" onAction="#onCloseStudentList" styleClass="small-button"/>
+            </HBox>
+            <Separator/>
+            <TableView fx:id="enrolledStudentsTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="enrolledStudentIdColumn" text="Student ID" prefWidth="300"/>
+                </columns>
+            </TableView>
+            <Label fx:id="enrolledCountLabel" text="Total: 0 students"/>
+        </VBox>
+    </bottom>
+</BorderPane>

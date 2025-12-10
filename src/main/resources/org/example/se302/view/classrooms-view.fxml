@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="org.example.se302.controller.ClassroomsController"
+      spacing="10" styleClass="content-pane">
+    <padding>
+        <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
+
+    <!-- Header -->
+    <Label text="Classroom Management" styleClass="section-title"/>
+
+    <!-- Classroom Table -->
+    <TableView fx:id="classroomsTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="classroomIdColumn" text="Classroom ID" prefWidth="200"/>
+            <TableColumn fx:id="capacityColumn" text="Capacity" prefWidth="150"/>
+            <TableColumn fx:id="statusColumn" text="Status" prefWidth="150"/>
+            <TableColumn fx:id="utilizationColumn" text="Utilization" prefWidth="150"/>
+        </columns>
+    </TableView>
+
+    <!-- Summary Statistics -->
+    <Separator/>
+    <HBox spacing="20" alignment="CENTER_LEFT" styleClass="summary-box">
+        <padding>
+            <Insets top="10" right="0" bottom="10" left="0"/>
+        </padding>
+        <Label fx:id="totalClassroomsLabel" text="Total Classrooms: 0" styleClass="summary-label"/>
+        <Label fx:id="totalCapacityLabel" text="Total Capacity: 0" styleClass="summary-label"/>
+        <Label fx:id="averageCapacityLabel" text="Average Capacity: 0" styleClass="summary-label"/>
+    </HBox>
+</VBox>

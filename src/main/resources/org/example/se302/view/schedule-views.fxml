@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      styleClass="content-pane">
+
+    <TabPane tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
+        <!-- Calendar/Day View -->
+        <Tab text="Calendar View">
+            <fx:include source="schedule-calendar-view.fxml"/>
+        </Tab>
+
+        <!-- Student Schedule View -->
+        <Tab text="Student Schedule">
+            <fx:include source="schedule-student-view.fxml"/>
+        </Tab>
+
+        <!-- Course Schedule View -->
+        <Tab text="Course Schedule">
+            <fx:include source="schedule-course-view.fxml"/>
+        </Tab>
+
+        <!-- Classroom Schedule View -->
+        <Tab text="Classroom Schedule">
+            <fx:include source="schedule-classroom-view.fxml"/>
+        </Tab>
+    </TabPane>
+</VBox>

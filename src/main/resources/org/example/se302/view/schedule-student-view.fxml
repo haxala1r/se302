@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="org.example.se302.controller.ScheduleStudentController"
+            styleClass="content-pane">
+
+    <top>
+        <VBox spacing="10">
+            <padding>
+                <Insets top="20" right="20" bottom="10" left="20"/>
+            </padding>
+            <Label text="Student Schedule View" styleClass="section-title"/>
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="Select Student:"/>
+                <ComboBox fx:id="studentComboBox" promptText="Choose a student..." prefWidth="200"/>
+                <Button text="Show Schedule" onAction="#onShowSchedule" styleClass="primary-button"/>
+            </HBox>
+        </VBox>
+    </top>
+
+    <center>
+        <VBox spacing="10">
+            <padding>
+                <Insets top="10" right="20" bottom="20" left="20"/>
+            </padding>
+            <Label fx:id="selectedStudentLabel" text="No student selected" styleClass="subsection-title"/>
+            <TableView fx:id="scheduleTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="courseColumn" text="Course" prefWidth="150"/>
+                    <TableColumn fx:id="dateColumn" text="Date" prefWidth="150"/>
+                    <TableColumn fx:id="timeColumn" text="Time" prefWidth="150"/>
+                    <TableColumn fx:id="classroomColumn" text="Classroom" prefWidth="150"/>
+                </columns>
+                <placeholder>
+                    <Label text="Select a student to view their exam schedule"/>
+                </placeholder>
+            </TableView>
+        </VBox>
+    </center>
+</BorderPane>

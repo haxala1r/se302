@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="org.example.se302.controller.StudentsController"
+            styleClass="content-pane">
+
+    <!-- Top: Search Bar -->
+    <top>
+        <VBox spacing="10">
+            <padding>
+                <Insets top="20" right="20" bottom="10" left="20"/>
+            </padding>
+            <Label text="Student Management" styleClass="section-title"/>
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <TextField fx:id="searchField" promptText="Search by Student ID..." HBox.hgrow="ALWAYS"/>
+                <Button text="Clear" onAction="#onClearSearch"/>
+            </HBox>
+            <Label fx:id="resultCountLabel" text="Total: 0 students"/>
+        </VBox>
+    </top>
+
+    <!-- Center: Student Table -->
+    <center>
+        <VBox spacing="5">
+            <padding>
+                <Insets top="0" right="20" bottom="20" left="20"/>
+            </padding>
+            <TableView fx:id="studentsTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="studentIdColumn" text="Student ID" prefWidth="200"/>
+                    <TableColumn fx:id="courseCountColumn" text="Enrolled Courses" prefWidth="150"/>
+                    <TableColumn fx:id="actionColumn" text="Actions" prefWidth="150"/>
+                </columns>
+            </TableView>
+        </VBox>
+    </center>
+
+    <!-- Right: Detail Panel (initially hidden) -->
+    <right>
+        <VBox fx:id="detailPanel" spacing="10" styleClass="detail-panel" visible="false" managed="false"
+              prefWidth="300" minWidth="250">
+            <padding>
+                <Insets top="20" right="20" bottom="20" left="20"/>
+            </padding>
+            <HBox alignment="CENTER_RIGHT">
+                <Button text="Close" onAction="#onCloseDetail" styleClass="small-button"/>
+            </HBox>
+            <Label text="Student Details" styleClass="subsection-title"/>
+            <Separator/>
+            <Label fx:id="detailStudentIdLabel" text="Student ID: -" wrapText="true"/>
+            <Label text="Enrolled Courses:" styleClass="subsection-title"/>
+            <ListView fx:id="coursesList" VBox.vgrow="ALWAYS"/>
+            <Label fx:id="detailCourseCountLabel" text="Total: 0 courses"/>
+        </VBox>
+    </right>
+</BorderPane>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="org.example.se302.controller.ImportController"
+      spacing="20" styleClass="content-pane">
+    <padding>
+        <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
+
+    <!-- Header -->
+    <Label text="Import Data from CSV Files" styleClass="section-title"/>
+    <Label text="Select CSV files to import student, course, classroom, and enrollment data." wrapText="true"/>
+
+    <Separator/>
+
+    <!-- Students Import Section -->
+    <VBox spacing="8">
+        <Label text="Student Data" styleClass="subsection-title"/>
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <TextField fx:id="studentFileField" promptText="No file selected" editable="false" HBox.hgrow="ALWAYS"/>
+            <Button fx:id="studentBrowseButton" text="Browse..." onAction="#onBrowseStudents"/>
+        </HBox>
+        <Label fx:id="studentStatusLabel" text="Not Loaded" styleClass="status-label"/>
+    </VBox>
+
+    <!-- Courses Import Section -->
+    <VBox spacing="8">
+        <Label text="Course Data" styleClass="subsection-title"/>
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <TextField fx:id="courseFileField" promptText="No file selected" editable="false" HBox.hgrow="ALWAYS"/>
+            <Button fx:id="courseBrowseButton" text="Browse..." onAction="#onBrowseCourses"/>
+        </HBox>
+        <Label fx:id="courseStatusLabel" text="Not Loaded" styleClass="status-label"/>
+    </VBox>
+
+    <!-- Classrooms Import Section -->
+    <VBox spacing="8">
+        <Label text="Classroom Data" styleClass="subsection-title"/>
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <TextField fx:id="classroomFileField" promptText="No file selected" editable="false" HBox.hgrow="ALWAYS"/>
+            <Button fx:id="classroomBrowseButton" text="Browse..." onAction="#onBrowseClassrooms"/>
+        </HBox>
+        <Label fx:id="classroomStatusLabel" text="Not Loaded" styleClass="status-label"/>
+    </VBox>
+
+    <!-- Enrollments Import Section -->
+    <VBox spacing="8">
+        <Label text="Enrollment Data" styleClass="subsection-title"/>
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <TextField fx:id="enrollmentFileField" promptText="No file selected" editable="false" HBox.hgrow="ALWAYS"/>
+            <Button fx:id="enrollmentBrowseButton" text="Browse..." onAction="#onBrowseEnrollments"/>
+        </HBox>
+        <Label fx:id="enrollmentStatusLabel" text="Not Loaded" styleClass="status-label"/>
+    </VBox>
+
+    <Separator/>
+
+    <!-- Import Messages Area -->
+    <VBox spacing="5" VBox.vgrow="ALWAYS">
+        <Label text="Import Messages" styleClass="subsection-title"/>
+        <TextArea fx:id="messagesArea" editable="false" wrapText="true" VBox.vgrow="ALWAYS"
+                  promptText="Validation messages and import results will appear here..."/>
+    </VBox>
+
+    <!-- Action Buttons -->
+    <HBox spacing="10" alignment="CENTER_RIGHT">
+        <Button fx:id="importAllButton" text="Import All" onAction="#onImportAll"
+                styleClass="primary-button" disable="true"/>
+        <Button text="Clear All" onAction="#onClearAll"/>
+    </HBox>
+</VBox>

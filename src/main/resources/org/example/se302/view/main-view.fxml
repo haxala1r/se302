@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="org.example.se302.controller.MainController"
+            prefHeight="800.0" prefWidth="1200.0">
+
+    <!-- Top: Title Bar -->
+    <top>
+        <VBox styleClass="header">
+            <Label text="Exam Scheduling System" styleClass="title-label"/>
+            <Separator/>
+        </VBox>
+    </top>
+
+    <!-- Center: Main TabPane -->
+    <center>
+        <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE">
+            <!-- Import Data Tab -->
+            <Tab fx:id="importTab" text="Import Data">
+                <fx:include source="import-view.fxml"/>
+            </Tab>
+
+            <!-- Students Tab -->
+            <Tab fx:id="studentsTab" text="Students">
+                <fx:include source="students-view.fxml"/>
+            </Tab>
+
+            <!-- Courses Tab -->
+            <Tab fx:id="coursesTab" text="Courses">
+                <fx:include source="courses-view.fxml"/>
+            </Tab>
+
+            <!-- Classrooms Tab -->
+            <Tab fx:id="classroomsTab" text="Classrooms">
+                <fx:include source="classrooms-view.fxml"/>
+            </Tab>
+
+            <!-- Schedule Views Tab -->
+            <Tab fx:id="scheduleTab" text="Schedule Views">
+                <fx:include source="schedule-views.fxml"/>
+            </Tab>
+        </TabPane>
+    </center>
+
+    <!-- Bottom: Status Bar -->
+    <bottom>
+        <HBox styleClass="status-bar" spacing="10">
+            <padding>
+                <Insets top="5" right="10" bottom="5" left="10"/>
+            </padding>
+            <Label fx:id="statusLabel" text="Ready - No data loaded"/>
+        </HBox>
+    </bottom>
+</BorderPane>
