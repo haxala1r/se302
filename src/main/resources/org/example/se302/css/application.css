@@ -1,0 +1,314 @@
+/* ===== Root Color Palette ===== */
+.root {
+    -fx-primary-color: #2196F3;
+    -fx-primary-dark: #1976D2;
+    -fx-accent-color: #FFC107;
+    -fx-success-color: #4CAF50;
+    -fx-error-color: #F44336;
+    -fx-background: #FAFAFA;
+    -fx-text-base-color: #212121;
+}
+
+/* ===== General Styling ===== */
+.content-pane {
+    -fx-background-color: white;
+}
+
+/* ===== Header Styling ===== */
+.header {
+    -fx-background-color: -fx-primary-color;
+    -fx-padding: 15;
+}
+
+.title-label {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+/* ===== Section Titles ===== */
+.section-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-primary-dark;
+}
+
+.subsection-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #424242;
+}
+
+.info-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #616161;
+}
+
+/* ===== Button Styling ===== */
+.button {
+    -fx-background-color: white;
+    -fx-border-color: -fx-primary-color;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-text-fill: -fx-primary-color;
+    -fx-padding: 8 16 8 16;
+    -fx-cursor: hand;
+}
+
+.button:hover {
+    -fx-background-color: #E3F2FD;
+}
+
+.primary-button {
+    -fx-background-color: -fx-primary-color;
+    -fx-text-fill: white;
+    -fx-border-color: -fx-primary-color;
+}
+
+.primary-button:hover {
+    -fx-background-color: -fx-primary-dark;
+    -fx-border-color: -fx-primary-dark;
+}
+
+.small-button {
+    -fx-font-size: 11px;
+    -fx-padding: 4 12 4 12;
+}
+
+/* ===== Table View Styling ===== */
+.table-view {
+    -fx-background-color: white;
+    -fx-border-color: #E0E0E0;
+    -fx-border-width: 1px;
+}
+
+.table-view .column-header {
+    -fx-background-color: -fx-primary-color;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 10;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: -fx-primary-color;
+}
+
+.table-view .table-cell {
+    -fx-padding: 8;
+    -fx-border-color: transparent;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: white;
+}
+
+.table-row-cell:even {
+    -fx-background-color: #F5F5F5;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: #BBDEFB;
+}
+
+.table-row-cell:hover {
+    -fx-background-color: #E3F2FD;
+}
+
+/* ===== Text Field Styling ===== */
+.text-field {
+    -fx-border-color: #BDBDBD;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-padding: 8;
+}
+
+.text-field:focused {
+    -fx-border-color: -fx-primary-color;
+    -fx-border-width: 2px;
+}
+
+/* ===== Text Area Styling ===== */
+.text-area {
+    -fx-border-color: #BDBDBD;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+}
+
+.text-area:focused {
+    -fx-border-color: -fx-primary-color;
+    -fx-border-width: 2px;
+}
+
+.text-area .content {
+    -fx-background-color: white;
+}
+
+/* ===== Combo Box Styling ===== */
+.combo-box {
+    -fx-border-color: #BDBDBD;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+}
+
+.combo-box:focused {
+    -fx-border-color: -fx-primary-color;
+}
+
+/* ===== Tab Pane Styling ===== */
+.tab-pane {
+    -fx-background-color: white;
+}
+
+.tab {
+    -fx-background-color: #F5F5F5;
+    -fx-background-radius: 0;
+    -fx-padding: 10 20 10 20;
+}
+
+.tab:selected {
+    -fx-background-color: white;
+    -fx-border-color: -fx-primary-color transparent transparent transparent;
+    -fx-border-width: 3px 0 0 0;
+}
+
+.tab:hover {
+    -fx-background-color: #EEEEEE;
+}
+
+.tab .tab-label {
+    -fx-text-fill: #616161;
+    -fx-font-weight: normal;
+}
+
+.tab:selected .tab-label {
+    -fx-text-fill: -fx-primary-dark;
+    -fx-font-weight: bold;
+}
+
+/* ===== Status Bar Styling ===== */
+.status-bar {
+    -fx-background-color: #EEEEEE;
+    -fx-border-color: #BDBDBD transparent transparent transparent;
+    -fx-border-width: 1px 0 0 0;
+}
+
+/* ===== Detail Panel Styling ===== */
+.detail-panel {
+    -fx-background-color: #F5F5F5;
+    -fx-border-color: #E0E0E0;
+    -fx-border-width: 0 0 0 1px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0, -2, 0);
+}
+
+/* ===== Summary Box Styling ===== */
+.summary-box {
+    -fx-background-color: #E3F2FD;
+    -fx-padding: 10;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+}
+
+.summary-label {
+    -fx-font-weight: bold;
+    -fx-text-fill: -fx-primary-dark;
+}
+
+/* ===== Status Labels ===== */
+.status-label {
+    -fx-font-size: 12px;
+    -fx-font-style: italic;
+}
+
+/* ===== Separator Styling ===== */
+.separator {
+    -fx-background-color: #E0E0E0;
+}
+
+/* ===== Date Picker Styling ===== */
+.date-picker {
+    -fx-border-color: #BDBDBD;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+}
+
+.date-picker:focused {
+    -fx-border-color: -fx-primary-color;
+}
+
+/* ===== Grid Pane for Calendar ===== */
+.schedule-grid {
+    -fx-background-color: white;
+    -fx-border-color: #BDBDBD;
+    -fx-border-width: 1px;
+}
+
+.grid-header {
+    -fx-background-color: #E3F2FD;
+    -fx-font-weight: bold;
+    -fx-padding: 10;
+    -fx-alignment: center;
+    -fx-min-width: 100;
+    -fx-min-height: 40;
+}
+
+.grid-cell {
+    -fx-padding: 10;
+    -fx-alignment: center;
+    -fx-min-width: 100;
+    -fx-min-height: 60;
+    -fx-background-color: white;
+}
+
+/* ===== List View Styling ===== */
+.list-view {
+    -fx-border-color: #E0E0E0;
+    -fx-border-width: 1px;
+}
+
+.list-cell {
+    -fx-padding: 8;
+}
+
+.list-cell:filled:selected {
+    -fx-background-color: -fx-primary-color;
+    -fx-text-fill: white;
+}
+
+.list-cell:filled:hover {
+    -fx-background-color: #E3F2FD;
+}
+
+/* ===== Scroll Bar Styling ===== */
+.scroll-bar {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: #BDBDBD;
+    -fx-background-radius: 4px;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: #9E9E9E;
+}
+
+/* ===== Progress Bar ===== */
+.progress-bar {
+    -fx-accent: -fx-primary-color;
+}
+
+/* ===== Label Link Style ===== */
+.label-link {
+    -fx-text-fill: -fx-primary-color;
+    -fx-cursor: hand;
+}
+
+.label-link:hover {
+    -fx-underline: true;
+}
