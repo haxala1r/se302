@@ -7,17 +7,141 @@ import java.util.*;
 /**
  * CSP (Constraint Satisfaction Problem) Solver for Exam Scheduling.
  * 
- * This solver uses a backtracking algorithm with the following optimizations:
- * - MRV (Minimum Remaining Values) heuristic for variable ordering
- * - Degree heuristic as a tie-breaker
- * - Forward checking for constraint propagation
- * - Arc consistency (AC-3) for further pruning
+ * <h2>ALGORITHM DOCUMENTATION</h2>
  * 
- * The CSP formulation:
- * - Variables: Each course that needs an exam scheduled
- * - Domain: All possible (TimeSlot, Classroom) pairs
- * - Constraints: Hard constraints (must satisfy) and soft constraints
- * (preferably satisfy)
+ * <h3>1. Problem Formulation</h3>
+ * 
+ * <pre>
+ * CSP Components:
+ * - Variables: Each course that needs an exam scheduled (X = {C1, C2, ..., Cn})
+ * - Domain: All possible (TimeSlot, Classroom) pairs (D = T × R)
+ * - Constraints: Rules that must be satisfied for a valid schedule
+ * 
+ * Hard Constraints:
+ * - HC1: Classroom Conflict - A classroom can host only one exam at a time
+ * - HC2: Student Conflict - A student cannot have two exams at the same time
+ * - HC3: Capacity - Classroom must have sufficient capacity
+ * </pre>
+ * 
+ * <h3>2. Algorithm Pseudocode</h3>
+ * 
+ * <pre>
+ * function BACKTRACKING-SEARCH(csp):
+ *     return BACKTRACK({}, csp)
+ * 
+ * function BACKTRACK(assignment, csp):
+ *     if assignment is complete:
+ *         return assignment
+ *     
+ *     var ← SELECT-UNASSIGNED-VARIABLE(csp, assignment)    // MRV Heuristic
+ *     
+ *     for each value in ORDER-DOMAIN-VALUES(var, assignment, csp):  // LCV Heuristic
+ *         if value is consistent with assignment:
+ *             add {var = value} to assignment
+ *             result ← BACKTRACK(assignment, csp)
+ *             if result ≠ failure:
+ *                 return result
+ *             remove {var = value} from assignment     // Backtrack
+ *     
+ *     return failure
+ * </pre>
+ * 
+ * <h3>3. MRV Heuristic (Minimum Remaining Values)</h3>
+ * 
+ * <pre>
+ * Also known as "Most Constrained Variable" or "Fail-First" heuristic.
+ * 
+ * function SELECT-UNASSIGNED-VARIABLE(csp, assignment):
+ *     unassigned ← {var ∈ VARIABLES(csp) | var ∉ assignment}
+ *     best ← null
+ *     minValues ← ∞
+ *     maxDegree ← -1
+ *     
+ *     for each var in unassigned:
+ *         remaining ← COUNT-LEGAL-VALUES(var, assignment, csp)
+ *         degree ← COUNT-CONFLICTS(var, unassigned)
+ *         
+ *         if remaining &lt; minValues:
+ *             best ← var; minValues ← remaining; maxDegree ← degree
+ *         else if remaining = minValues AND degree &gt; maxDegree:
+ *             best ← var; maxDegree ← degree
+ *     
+ *     return best
+ * 
+ * Why MRV works:
+ * - Detects failures early (fail-fast principle)
+ * - If a variable has 0 remaining values → immediate backtrack
+ * - Significantly prunes the search tree
+ * </pre>
+ * 
+ * <h3>4. LCV Heuristic (Least Constraining Value)</h3>
+ * 
+ * <pre>
+ * function ORDER-DOMAIN-VALUES(var, assignment, csp):
+ *     values ← DOMAIN(var)
+ *     
+ *     for each value in values:
+ *         value.score ← 0
+ *         for each neighbor in NEIGHBORS(var):
+ *             if neighbor ∉ assignment:
+ *                 for each neighborValue in DOMAIN(neighbor):
+ *                     if CONFLICTS(value, neighborValue):
+ *                         value.score ← value.score + 1
+ *     
+ *     return SORT(values, by: score, order: ascending)
+ * 
+ * Why LCV works:
+ * - Maximizes flexibility for future assignments
+ * - Leaves more options for remaining variables
+ * - Increases probability of finding a solution
+ * </pre>
+ * 
+ * <h3>5. Complexity Analysis</h3>
+ * 
+ * <pre>
+ * TIME COMPLEXITY:
+ * ┌────────────────────────┬───────────┬────────────────────────────────────┐
+ * │ Component              │ Complexity│ Description                        │
+ * ├────────────────────────┼───────────┼────────────────────────────────────┤
+ * │ Worst Case             │ O(d^n)    │ d = domain size, n = variables     │
+ * │ Build Conflict Graph   │ O(n²×s)   │ n = courses, s = avg students      │
+ * │ MRV Selection          │ O(n×d)    │ Scan all vars, count legal values  │
+ * │ LCV Ordering           │ O(d×m×d)  │ d = domain, m = neighbors          │
+ * │ Consistency Check      │ O(k)      │ k = number of constraints          │
+ * └────────────────────────┴───────────┴────────────────────────────────────┘
+ * 
+ * SPACE COMPLEXITY:
+ * ┌────────────────────────┬───────────┬────────────────────────────────────┐
+ * │ Component              │ Complexity│ Description                        │
+ * ├────────────────────────┼───────────┼────────────────────────────────────┤
+ * │ Assignment Storage     │ O(n)      │ One assignment per course          │
+ * │ Conflict Graph         │ O(n²)     │ Worst case: all courses conflict   │
+ * │ Domain Storage         │ O(t×r)    │ t = time slots, r = classrooms     │
+ * │ Recursion Stack        │ O(n)      │ Maximum depth = number of courses  │
+ * └────────────────────────┴───────────┴────────────────────────────────────┘
+ * 
+ * PRACTICAL PERFORMANCE (with heuristics):
+ * ┌─────────────────────────┬─────────────────────┐
+ * │ Scenario                │ Expected Time       │
+ * ├─────────────────────────┼─────────────────────┤
+ * │ Small (&lt;50 courses)     │ &lt; 1 second          │
+ * │ Medium (50-200 courses) │ 1-30 seconds        │
+ * │ Large (200-500 courses) │ 30 sec - 5 minutes  │
+ * │ Very Large (&gt;500)       │ May need more opts  │
+ * └─────────────────────────┴─────────────────────┘
+ * </pre>
+ * 
+ * <h3>6. Optimization Techniques</h3>
+ * <ul>
+ * <li>Early Termination: Stop as soon as a valid solution is found</li>
+ * <li>Conflict Graph Pre-computation: O(1) student conflict lookup</li>
+ * <li>Capacity Pre-filtering: Exclude classrooms that are too small</li>
+ * <li>Timeout Mechanism: Prevent infinite loops (default 60 seconds)</li>
+ * </ul>
+ * 
+ * @see Constraint
+ * @see ExamAssignment
+ * @see ScheduleState
  */
 public class CSPSolver {
 
@@ -159,7 +283,24 @@ public class CSPSolver {
     }
 
     /**
-     * Backtracking algorithm with MRV heuristic.
+     * Core backtracking algorithm with MRV and LCV heuristics.
+     * 
+     * <pre>
+     * Algorithm Steps:
+     * 1. Check if timeout exceeded
+     * 2. If all courses assigned → return solution
+     * 3. Select unassigned course using MRV heuristic
+     * 4. Order domain values using LCV heuristic
+     * 5. For each (timeSlot, classroom) value:
+     *    a. If consistent with constraints → assign
+     *    b. Recursively solve remaining courses
+     *    c. If solution found → return
+     *    d. Otherwise → backtrack (undo assignment)
+     * 6. Return null if no solution found
+     * </pre>
+     * 
+     * @param state Current schedule state
+     * @return Complete schedule if solution found, null otherwise
      */
     private ScheduleState backtrack(ScheduleState state) {
         // Check timeout
