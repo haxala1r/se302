@@ -208,7 +208,9 @@ public class DataImportService {
 
     /**
      * Import enrollment data from CSV file.
-     * Format: Alternating lines - course code, then Python list of student IDs
+     * Format: Alternating lines - course code, then Python list of student IDs,
+     * then blank line
+     * NO HEADER LINE in this file format.
      */
     public ImportResult importEnrollments(File file) {
         ImportResult result = new ImportResult();
@@ -228,51 +230,78 @@ public class DataImportService {
             int courseCount = 0;
             int enrollmentCount = 0;
 
-            // Skip header, then process in pairs (course code, student list)
-            for (int i = 1; i < lines.size(); i++) {
-                String courseCode = lines.get(i).trim();
+            // Process lines - pattern is: CourseCode, StudentList, EmptyLine, repeat...
+            // NO HEADER in this file format
+            int i = 0;
+            while (i < lines.size()) {
+                String currentLine = lines.get(i).trim();
 
-                if (courseCode.isEmpty()) {
-                    continue; // Skip empty lines
-                }
-
-                // Next line should be the student list
-                if (i + 1 >= lines.size()) {
-                    result.addError("Line " + (i + 1) + ": Missing student list for course " + courseCode);
-                    break;
-                }
-
-                i++; // Move to student list line
-                String studentListStr = lines.get(i).trim();
-
-                // Verify course exists
-                Course course = dataManager.getCourse(courseCode);
-                if (course == null) {
-                    result.addError("Line " + (i) + ": Course not found: " + courseCode);
+                // Skip empty lines
+                if (currentLine.isEmpty()) {
+                    i++;
                     continue;
                 }
 
-                // Parse Python list format: ['Std_ID_001', 'Std_ID_002', ...]
-                List<String> studentIds = parseStudentList(studentListStr);
+                // Check if this looks like a course code
+                if (COURSE_CODE_PATTERN.matcher(currentLine).matches()) {
+                    String courseCode = currentLine;
 
-                for (String studentId : studentIds) {
-                    Student student = dataManager.getStudent(studentId);
-                    if (student == null) {
-                        result.addError("Line " + (i + 1) + ": Student not found: " + studentId);
+                    // Verify course exists
+                    Course course = dataManager.getCourse(courseCode);
+                    if (course == null) {
+                        result.addError("Line " + (i + 1) + ": Course not found: " + courseCode);
+                        i++;
                         continue;
                     }
 
-                    dataManager.addEnrollment(studentId, courseCode);
-                    enrollmentCount++;
-                }
+                    // Next line should be the student list
+                    i++;
+                    if (i >= lines.size()) {
+                        result.addError("Line " + i + ": Missing student list for course " + courseCode);
+                        break;
+                    }
 
-                courseCount++;
+                    String studentListStr = lines.get(i).trim();
+
+                    // Check if this is a valid student list (starts with '[')
+                    if (!studentListStr.startsWith("[")) {
+                        result.addError("Line " + (i + 1) + ": Invalid student list format for course " + courseCode);
+                        i++;
+                        continue;
+                    }
+
+                    // Parse Python list format: ['Std_ID_001', 'Std_ID_002', ...]
+                    List<String> studentIds = parseStudentList(studentListStr);
+
+                    for (String studentId : studentIds) {
+                        Student student = dataManager.getStudent(studentId);
+                        if (student == null) {
+                            result.addError("Line " + (i + 1) + ": Student not found: " + studentId);
+                            continue;
+                        }
+
+                        dataManager.addEnrollment(studentId, courseCode);
+                        enrollmentCount++;
+                    }
+
+                    courseCount++;
+                    i++;
+                } else if (currentLine.startsWith("[")) {
+                    // This is a student list without a course code before it - skip
+                    result.addError("Line " + (i + 1) + ": Student list without course code: " +
+                            (currentLine.length() > 50 ? currentLine.substring(0, 50) + "..." : currentLine));
+                    i++;
+                } else {
+                    // Unknown line format - skip
+                    i++;
+                }
             }
 
             result.setRecordCount(enrollmentCount);
             if (!result.hasErrors()) {
                 result.setSuccess(true);
-                result.setMessage("Successfully imported " + enrollmentCount + " enrollments for " + courseCount + " courses");
+                result.setMessage(
+                        "Successfully imported " + enrollmentCount + " enrollments for " + courseCount + " courses");
             } else {
                 result.setMessage("Imported " + enrollmentCount + " enrollments with errors");
             }
@@ -299,7 +328,7 @@ public class DataImportService {
             String[] parts = content.split(",");
             for (String part : parts) {
                 String cleanId = part.trim()
-                        .replace("'", "")  // Remove single quotes
+                        .replace("'", "") // Remove single quotes
                         .replace("\"", "") // Remove double quotes
                         .trim();
 
