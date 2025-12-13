@@ -28,14 +28,21 @@ public class ScheduleConfiguration {
      * Optimization strategies for the scheduling algorithm.
      */
     public enum OptimizationStrategy {
-        /** Minimize total number of days used */
+        /** Minimize total number of days used - pack exams into fewest days */
         MINIMIZE_DAYS,
-        /** Spread exams evenly across days */
+
+        /** Spread exams evenly across days - balanced distribution */
         BALANCED_DISTRIBUTION,
-        /** Minimize consecutive exams for students */
+
+        /** Minimize number of classrooms used - reuse same classrooms */
+        MINIMIZE_CLASSROOMS,
+
+        /** Balance classroom usage across days - even distribution */
+        BALANCE_CLASSROOMS,
+
+        /** Minimize consecutive exams for students (bonus strategy) */
         STUDENT_FRIENDLY,
-        /** Maximize classroom utilization */
-        MAXIMIZE_ROOM_USAGE,
+
         /** Default balanced approach */
         DEFAULT
     }

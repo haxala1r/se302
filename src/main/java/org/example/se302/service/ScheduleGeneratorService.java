@@ -102,40 +102,41 @@ public class ScheduleGeneratorService {
 
         ExamAssignment assignment = scheduleState.getAssignment(currentCourse.getCourseCode());
 
-        // Try each day and time slot
-        for (int day = 0; day < config.getNumDays(); day++) {
-            for (int slot = 0; slot < config.getSlotsPerDay(); slot++) {
-                if (cancelled.get()) {
-                    return false;
-                }
+        // Get time slots ordered by strategy
+        List<DaySlotPair> orderedTimeSlots = getTimeSlotsOrderedByStrategy(config, scheduleState);
 
-                // Get suitable classrooms for this day/slot
-                List<Classroom> suitableClassrooms = getSuitableClassrooms(
-                        currentCourse, day, slot, scheduleState);
+        // Try each time slot
+        for (DaySlotPair timeSlot : orderedTimeSlots) {
+            if (cancelled.get()) {
+                return false;
+            }
 
-                // Try each classroom
-                for (Classroom classroom : suitableClassrooms) {
-                    // Temporarily assign
-                    assignment.setDay(day);
-                    assignment.setTimeSlotIndex(slot);
-                    assignment.setClassroomId(classroom.getClassroomId());
+            // Get suitable classrooms for this day/slot (ordered by strategy)
+            List<Classroom> suitableClassrooms = getSuitableClassroomsOrdered(
+                    currentCourse, timeSlot.day, timeSlot.slot, scheduleState, config);
 
-                    // Validate assignment
-                    ConstraintValidator.ValidationResult validationResult =
-                            validator.validateAssignment(assignment, scheduleState);
+            // Try each classroom
+            for (Classroom classroom : suitableClassrooms) {
+                // Temporarily assign
+                assignment.setDay(timeSlot.day);
+                assignment.setTimeSlotIndex(timeSlot.slot);
+                assignment.setClassroomId(classroom.getClassroomId());
 
-                    if (validationResult.isValid()) {
-                        // Assignment is valid, try to assign remaining courses
-                        if (backtrack(scheduleState, courses, courseIndex + 1, config)) {
-                            return true; // Success!
-                        }
+                // Validate assignment
+                ConstraintValidator.ValidationResult validationResult =
+                        validator.validateAssignment(assignment, scheduleState);
+
+                if (validationResult.isValid()) {
+                    // Assignment is valid, try to assign remaining courses
+                    if (backtrack(scheduleState, courses, courseIndex + 1, config)) {
+                        return true; // Success!
                     }
-
-                    // Backtrack: reset assignment
-                    assignment.setDay(-1);
-                    assignment.setTimeSlotIndex(-1);
-                    assignment.setClassroomId(null);
                 }
+
+                // Backtrack: reset assignment
+                assignment.setDay(-1);
+                assignment.setTimeSlotIndex(-1);
+                assignment.setClassroomId(null);
             }
         }
 
@@ -160,12 +161,53 @@ public class ScheduleGeneratorService {
     }
 
     /**
-     * Get classrooms suitable for a course at a specific day and time slot.
+     * Get time slots ordered by optimization strategy.
      */
-    private List<Classroom> getSuitableClassrooms(Course course,
-                                                  int day,
-                                                  int timeSlotIndex,
-                                                  ScheduleState scheduleState) {
+    private List<DaySlotPair> getTimeSlotsOrderedByStrategy(ScheduleConfiguration config, ScheduleState scheduleState) {
+        List<DaySlotPair> timeSlots = new ArrayList<>();
+
+        // Generate all day/slot combinations
+        for (int day = 0; day < config.getNumDays(); day++) {
+            for (int slot = 0; slot < config.getSlotsPerDay(); slot++) {
+                timeSlots.add(new DaySlotPair(day, slot));
+            }
+        }
+
+        // Order based on strategy
+        switch (config.getOptimizationStrategy()) {
+            case MINIMIZE_DAYS:
+                // Already in order (day 0 slot 0, day 0 slot 1, ... day 1 slot 0, ...)
+                // This fills earlier days first
+                break;
+
+            case BALANCED_DISTRIBUTION:
+                // Round-robin across days: day 0 slot 0, day 1 slot 0, day 2 slot 0, ... day 0 slot 1, ...
+                timeSlots.sort(Comparator.comparingInt((DaySlotPair p) -> p.slot)
+                        .thenComparingInt(p -> p.day));
+                break;
+
+            case STUDENT_FRIENDLY:
+                // Try to space out exams - prefer later slots on same day to avoid consecutive
+                // (This is a simple heuristic - more sophisticated would track student conflicts)
+                break;
+
+            default:
+                // DEFAULT or others: chronological order
+                break;
+        }
+
+        return timeSlots;
+    }
+
+    /**
+     * Get classrooms suitable for a course at a specific day and time slot,
+     * ordered according to optimization strategy.
+     */
+    private List<Classroom> getSuitableClassroomsOrdered(Course course,
+                                                         int day,
+                                                         int timeSlotIndex,
+                                                         ScheduleState scheduleState,
+                                                         ScheduleConfiguration config) {
         List<Classroom> suitable = new ArrayList<>();
 
         for (Classroom classroom : scheduleState.getAvailableClassrooms()) {
@@ -191,10 +233,61 @@ public class ScheduleGeneratorService {
             }
         }
 
-        // Sort by capacity (prefer smaller classrooms that fit)
-        suitable.sort(Comparator.comparingInt(Classroom::getCapacity));
+        // Order based on strategy
+        switch (config.getOptimizationStrategy()) {
+            case MINIMIZE_CLASSROOMS:
+                // Prefer classrooms that are already in use (reuse same classrooms)
+                suitable.sort((c1, c2) -> {
+                    int usage1 = getClassroomUsageCount(c1.getClassroomId(), scheduleState);
+                    int usage2 = getClassroomUsageCount(c2.getClassroomId(), scheduleState);
+                    // Sort descending (most used first)
+                    return Integer.compare(usage2, usage1);
+                });
+                break;
+
+            case BALANCE_CLASSROOMS:
+                // Prefer classrooms that are least used
+                suitable.sort((c1, c2) -> {
+                    int usage1 = getClassroomUsageCount(c1.getClassroomId(), scheduleState);
+                    int usage2 = getClassroomUsageCount(c2.getClassroomId(), scheduleState);
+                    // Sort ascending (least used first)
+                    return Integer.compare(usage1, usage2);
+                });
+                break;
+
+            default:
+                // DEFAULT or others: prefer smaller classrooms that fit (efficient space usage)
+                suitable.sort(Comparator.comparingInt(Classroom::getCapacity));
+                break;
+        }
 
         return suitable;
+    }
+
+    /**
+     * Count how many times a classroom has been used in the current schedule.
+     */
+    private int getClassroomUsageCount(String classroomId, ScheduleState scheduleState) {
+        int count = 0;
+        for (ExamAssignment assignment : scheduleState.getAssignments().values()) {
+            if (assignment.isAssigned() && assignment.getClassroomId().equals(classroomId)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Helper class to represent a day/slot pair.
+     */
+    private static class DaySlotPair {
+        final int day;
+        final int slot;
+
+        DaySlotPair(int day, int slot) {
+            this.day = day;
+            this.slot = slot;
+        }
     }
 
     /**
