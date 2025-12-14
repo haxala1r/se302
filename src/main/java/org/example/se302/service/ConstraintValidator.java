@@ -35,8 +35,19 @@ public class ConstraintValidator {
 
     /**
      * Validate a single assignment against the current schedule state.
+     * Uses default strict validation (no back-to-back allowed).
      */
     public ValidationResult validateAssignment(ExamAssignment assignment, ScheduleState scheduleState) {
+        return validateAssignment(assignment, scheduleState, false);
+    }
+
+    /**
+     * Validate a single assignment against the current schedule state.
+     * 
+     * @param allowBackToBack If true, consecutive exams are allowed
+     */
+    public ValidationResult validateAssignment(ExamAssignment assignment, ScheduleState scheduleState,
+            boolean allowBackToBack) {
         ValidationResult result = new ValidationResult();
 
         if (!assignment.isAssigned()) {
@@ -48,23 +59,74 @@ public class ConstraintValidator {
         ValidationResult capacityResult = checkClassroomCapacity(assignment);
         result.merge(capacityResult);
 
-        // Check no double-booking
+        // Check no double-booking (always required)
         ValidationResult doubleBookingResult = checkNoDoubleBooking(assignment, scheduleState);
         result.merge(doubleBookingResult);
 
-        // Check student constraints
+        // Check student constraints - only check same time slot conflicts (always
+        // required)
         Course course = dataManager.getCourse(assignment.getCourseCode());
         if (course != null) {
-            for (String studentId : course.getEnrolledStudents()) {
-                // Check no consecutive exams
-                ValidationResult consecutiveResult = checkNoConsecutiveExams(
-                        studentId, assignment, scheduleState);
-                result.merge(consecutiveResult);
+            // Check if student has another exam at the SAME time slot (hard constraint)
+            ValidationResult sameTimeResult = checkNoSameTimeExams(assignment, scheduleState, course);
+            result.merge(sameTimeResult);
 
-                // Check max 2 exams per day
-                ValidationResult maxPerDayResult = checkMaxTwoExamsPerDay(
-                        studentId, assignment, scheduleState);
-                result.merge(maxPerDayResult);
+            // Only check consecutive and max per day if back-to-back is NOT allowed
+            if (!allowBackToBack) {
+                for (String studentId : course.getEnrolledStudents()) {
+                    // Check no consecutive exams (soft - skip if allowBackToBack)
+                    ValidationResult consecutiveResult = checkNoConsecutiveExams(
+                            studentId, assignment, scheduleState);
+                    result.merge(consecutiveResult);
+
+                    // Check max 2 exams per day
+                    ValidationResult maxPerDayResult = checkMaxTwoExamsPerDay(
+                            studentId, assignment, scheduleState);
+                    result.merge(maxPerDayResult);
+
+                    // If already invalid, no need to check more students
+                    if (!result.isValid()) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Check that no student has two exams at the exact same time slot.
+     * This is a hard constraint that must always be satisfied.
+     */
+    private ValidationResult checkNoSameTimeExams(ExamAssignment newAssignment,
+            ScheduleState scheduleState,
+            Course course) {
+        ValidationResult result = new ValidationResult();
+
+        int newDay = newAssignment.getDay();
+        int newSlot = newAssignment.getTimeSlotIndex();
+
+        for (ExamAssignment existing : scheduleState.getAssignments().values()) {
+            if (!existing.isAssigned() || existing.getCourseCode().equals(newAssignment.getCourseCode())) {
+                continue;
+            }
+
+            // Check if same day and slot
+            if (existing.getDay() == newDay && existing.getTimeSlotIndex() == newSlot) {
+                // Check if any student is enrolled in both courses
+                Course otherCourse = dataManager.getCourse(existing.getCourseCode());
+                if (otherCourse != null) {
+                    for (String studentId : course.getEnrolledStudents()) {
+                        if (otherCourse.getEnrolledStudents().contains(studentId)) {
+                            result.addError(String.format(
+                                    "Student %s has two exams at the same time: %s and %s (Day %d, Slot %d)",
+                                    studentId, newAssignment.getCourseCode(), existing.getCourseCode(),
+                                    newDay + 1, newSlot + 1));
+                            return result; // One conflict is enough
+                        }
+                    }
+                }
             }
         }
 
@@ -111,10 +173,10 @@ public class ConstraintValidator {
         // Check if any other assignment uses the same classroom at the same time
         for (ExamAssignment existing : scheduleState.getAssignments().values()) {
             if (existing.isAssigned() &&
-                !existing.getCourseCode().equals(assignment.getCourseCode()) &&
-                existing.getClassroomId().equals(assignment.getClassroomId()) &&
-                existing.getDay() == assignment.getDay() &&
-                existing.getTimeSlotIndex() == assignment.getTimeSlotIndex()) {
+                    !existing.getCourseCode().equals(assignment.getCourseCode()) &&
+                    existing.getClassroomId().equals(assignment.getClassroomId()) &&
+                    existing.getDay() == assignment.getDay() &&
+                    existing.getTimeSlotIndex() == assignment.getTimeSlotIndex()) {
 
                 result.addError(String.format(
                         "Classroom double-booking: %s already has %s at Day %d, Slot %d",
@@ -131,11 +193,12 @@ public class ConstraintValidator {
 
     /**
      * Check that a student has no consecutive exams.
-     * Consecutive means exams in adjacent time slots on the same day (back-to-back).
+     * Consecutive means exams in adjacent time slots on the same day
+     * (back-to-back).
      */
     public ValidationResult checkNoConsecutiveExams(String studentId,
-                                                    ExamAssignment newAssignment,
-                                                    ScheduleState scheduleState) {
+            ExamAssignment newAssignment,
+            ScheduleState scheduleState) {
         ValidationResult result = new ValidationResult();
 
         // Get all courses this student is enrolled in
@@ -161,7 +224,7 @@ public class ConstraintValidator {
 
                 // Check if consecutive (adjacent slots on the same day)
                 boolean isConsecutive = (existingDay == newDay) &&
-                    (Math.abs(existingSlot - newSlot) == 1);
+                        (Math.abs(existingSlot - newSlot) == 1);
 
                 if (isConsecutive) {
                     result.addError(String.format(
@@ -180,8 +243,8 @@ public class ConstraintValidator {
      * Check that a student has at most 2 exams per day.
      */
     public ValidationResult checkMaxTwoExamsPerDay(String studentId,
-                                                   ExamAssignment newAssignment,
-                                                   ScheduleState scheduleState) {
+            ExamAssignment newAssignment,
+            ScheduleState scheduleState) {
         ValidationResult result = new ValidationResult();
 
         // Get all courses this student is enrolled in

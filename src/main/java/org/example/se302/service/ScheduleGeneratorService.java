@@ -6,7 +6,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Service for generating exam schedules using Constraint Satisfaction Problem (CSP) solving.
+ * Service for generating exam schedules using Constraint Satisfaction Problem
+ * (CSP) solving.
  * Implements backtracking algorithm with MRV and LCV heuristics.
  * Works with the day/timeSlotIndex based ExamAssignment architecture.
  */
@@ -57,7 +58,8 @@ public class ScheduleGeneratorService {
             updateProgress(coursesToSchedule.size(), coursesToSchedule.size(), "Schedule generated successfully!");
             return ScheduleResult.success(scheduleState);
         } else {
-            return ScheduleResult.failure("No valid schedule found. Try increasing days/slots or relaxing constraints.");
+            return ScheduleResult
+                    .failure("No valid schedule found. Try increasing days/slots or relaxing constraints.");
         }
     }
 
@@ -83,7 +85,8 @@ public class ScheduleGeneratorService {
     /**
      * Backtracking algorithm core.
      */
-    private boolean backtrack(ScheduleState scheduleState, List<Course> courses, int courseIndex, ScheduleConfiguration config) {
+    private boolean backtrack(ScheduleState scheduleState, List<Course> courses, int courseIndex,
+            ScheduleConfiguration config) {
         // Check cancellation
         if (cancelled.get()) {
             return false;
@@ -122,9 +125,9 @@ public class ScheduleGeneratorService {
                 assignment.setTimeSlotIndex(timeSlot.slot);
                 assignment.setClassroomId(classroom.getClassroomId());
 
-                // Validate assignment
-                ConstraintValidator.ValidationResult validationResult =
-                        validator.validateAssignment(assignment, scheduleState);
+                // Validate assignment - pass allowBackToBack from config
+                ConstraintValidator.ValidationResult validationResult = validator.validateAssignment(assignment,
+                        scheduleState, config.isAllowBackToBackExams());
 
                 if (validationResult.isValid()) {
                     // Assignment is valid, try to assign remaining courses
@@ -154,8 +157,7 @@ public class ScheduleGeneratorService {
         // More students = more constrained
         courses.sort((c1, c2) -> Integer.compare(
                 c2.getEnrolledStudentsCount(),
-                c1.getEnrolledStudentsCount()
-        ));
+                c1.getEnrolledStudentsCount()));
 
         return courses;
     }
@@ -181,14 +183,16 @@ public class ScheduleGeneratorService {
                 break;
 
             case BALANCED_DISTRIBUTION:
-                // Round-robin across days: day 0 slot 0, day 1 slot 0, day 2 slot 0, ... day 0 slot 1, ...
+                // Round-robin across days: day 0 slot 0, day 1 slot 0, day 2 slot 0, ... day 0
+                // slot 1, ...
                 timeSlots.sort(Comparator.comparingInt((DaySlotPair p) -> p.slot)
                         .thenComparingInt(p -> p.day));
                 break;
 
             case STUDENT_FRIENDLY:
                 // Try to space out exams - prefer later slots on same day to avoid consecutive
-                // (This is a simple heuristic - more sophisticated would track student conflicts)
+                // (This is a simple heuristic - more sophisticated would track student
+                // conflicts)
                 break;
 
             default:
@@ -204,10 +208,10 @@ public class ScheduleGeneratorService {
      * ordered according to optimization strategy.
      */
     private List<Classroom> getSuitableClassroomsOrdered(Course course,
-                                                         int day,
-                                                         int timeSlotIndex,
-                                                         ScheduleState scheduleState,
-                                                         ScheduleConfiguration config) {
+            int day,
+            int timeSlotIndex,
+            ScheduleState scheduleState,
+            ScheduleConfiguration config) {
         List<Classroom> suitable = new ArrayList<>();
 
         for (Classroom classroom : scheduleState.getAvailableClassrooms()) {
@@ -220,9 +224,9 @@ public class ScheduleGeneratorService {
             boolean isAvailable = true;
             for (ExamAssignment assignment : scheduleState.getAssignments().values()) {
                 if (assignment.isAssigned() &&
-                    assignment.getClassroomId().equals(classroom.getClassroomId()) &&
-                    assignment.getDay() == day &&
-                    assignment.getTimeSlotIndex() == timeSlotIndex) {
+                        assignment.getClassroomId().equals(classroom.getClassroomId()) &&
+                        assignment.getDay() == day &&
+                        assignment.getTimeSlotIndex() == timeSlotIndex) {
                     isAvailable = false;
                     break;
                 }
@@ -320,8 +324,9 @@ public class ScheduleGeneratorService {
     public interface ProgressListener {
         /**
          * Called when progress updates.
+         * 
          * @param progress Value between 0.0 and 1.0
-         * @param message Current status message
+         * @param message  Current status message
          */
         void onProgress(double progress, String message);
     }

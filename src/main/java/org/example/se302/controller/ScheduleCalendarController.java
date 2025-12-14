@@ -1,33 +1,475 @@
 package org.example.se302.controller;
 
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
-import javafx.scene.control.DatePicker;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import org.example.se302.model.*;
+import org.example.se302.service.DataManager;
+import org.example.se302.service.ScheduleGeneratorService;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.*;
 
 /**
  * Controller for the Calendar/Day schedule view.
+ * Handles schedule configuration and generation using CSP algorithm.
  */
 public class ScheduleCalendarController {
 
-    @FXML private DatePicker startDatePicker;
-    @FXML private DatePicker endDatePicker;
+    // Configuration controls
+    @FXML
+    private Spinner<Integer> numDaysSpinner;
+    @FXML
+    private Spinner<Integer> slotsPerDaySpinner;
+    @FXML
+    private DatePicker startDatePicker;
+    @FXML
+    private Spinner<Integer> slotDurationSpinner;
+    @FXML
+    private ComboBox<String> strategyComboBox;
+    @FXML
+    private ComboBox<String> startTimeComboBox;
+    @FXML
+    private CheckBox allowBackToBackCheckBox;
+    @FXML
+    private Label summaryLabel;
+
+    // Action controls
+    @FXML
+    private Button generateButton;
+    @FXML
+    private Button cancelButton;
+    @FXML
+    private Label statusLabel;
+
+    // Progress controls
+    @FXML
+    private VBox progressContainer;
+    @FXML
+    private ProgressBar progressBar;
+    @FXML
+    private Label progressLabel;
+
+    // Schedule display
+    @FXML
+    private ScrollPane scheduleScrollPane;
+    @FXML
+    private GridPane scheduleGrid;
+
+    // Statistics labels
+    @FXML
+    private Label totalCoursesLabel;
+    @FXML
+    private Label scheduledCoursesLabel;
+    @FXML
+    private Label classroomsUsedLabel;
+    @FXML
+    private Label generationTimeLabel;
+
+    // Services
+    private final DataManager dataManager = DataManager.getInstance();
+    private ScheduleGeneratorService generatorService;
+    private ScheduleState currentSchedule;
+    private Thread generationThread;
 
     @FXML
     public void initialize() {
-        // Initialize with default date range if needed
+        // Initialize spinners
+        initializeSpinners();
+
+        // Initialize combo boxes
+        initializeComboBoxes();
+
+        // Set default date to next week
+        startDatePicker.setValue(LocalDate.now().plusDays(7));
+
+        // Set default checkbox - allow back-to-back for easier scheduling
+        allowBackToBackCheckBox.setSelected(true);
+
+        // Add listeners to update summary
+        numDaysSpinner.valueProperty().addListener((obs, oldVal, newVal) -> updateSummary());
+        slotsPerDaySpinner.valueProperty().addListener((obs, oldVal, newVal) -> updateSummary());
+
+        // Initial summary update
+        updateSummary();
+
+        // Update status with data info
+        updateDataStatus();
+    }
+
+    private void initializeSpinners() {
+        // Number of days spinner (1-30)
+        SpinnerValueFactory<Integer> daysFactory = new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 30, 5);
+        numDaysSpinner.setValueFactory(daysFactory);
+
+        // Slots per day spinner (1-10)
+        SpinnerValueFactory<Integer> slotsFactory = new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 10, 4);
+        slotsPerDaySpinner.setValueFactory(slotsFactory);
+
+        // Slot duration spinner (30-240 minutes)
+        SpinnerValueFactory<Integer> durationFactory = new SpinnerValueFactory.IntegerSpinnerValueFactory(30, 240, 120,
+                30);
+        slotDurationSpinner.setValueFactory(durationFactory);
+    }
+
+    private void initializeComboBoxes() {
+        // Optimization strategies
+        List<String> strategies = Arrays.asList(
+                "Default (Balanced)",
+                "Minimize Days",
+                "Balanced Distribution",
+                "Minimize Classrooms",
+                "Balance Classrooms",
+                "Student Friendly");
+        strategyComboBox.setItems(FXCollections.observableArrayList(strategies));
+        strategyComboBox.getSelectionModel().selectFirst();
+
+        // Start times (8:00 - 14:00)
+        List<String> times = Arrays.asList(
+                "08:00", "08:30", "09:00", "09:30", "10:00");
+        startTimeComboBox.setItems(FXCollections.observableArrayList(times));
+        startTimeComboBox.getSelectionModel().select("09:00");
+    }
+
+    private void updateSummary() {
+        int days = numDaysSpinner.getValue();
+        int slots = slotsPerDaySpinner.getValue();
+        int total = days * slots;
+        summaryLabel.setText(String.format("%d days × %d slots = %d total time slots", days, slots, total));
+    }
+
+    private void updateDataStatus() {
+        int courses = dataManager.getTotalCourses();
+        int classrooms = dataManager.getTotalClassrooms();
+        int students = dataManager.getTotalStudents();
+
+        if (courses == 0 || classrooms == 0) {
+            statusLabel
+                    .setText("⚠️ Please import data first (Courses: " + courses + ", Classrooms: " + classrooms + ")");
+            statusLabel.setStyle("-fx-text-fill: #e74c3c;");
+        } else {
+            statusLabel.setText(
+                    "✓ Ready - " + courses + " courses, " + classrooms + " classrooms, " + students + " students");
+            statusLabel.setStyle("-fx-text-fill: #27ae60;");
+        }
+
+        totalCoursesLabel.setText(String.valueOf(courses));
     }
 
     @FXML
     private void onGenerateSchedule() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Coming Soon");
-        alert.setHeaderText("Schedule Generation");
-        alert.setContentText("The CSP-based schedule generation algorithm will be implemented in Phase 2.\n\n" +
-                "It will automatically create an exam schedule that satisfies all constraints:\n" +
-                "- No consecutive exams for students\n" +
-                "- Max 2 exams per day per student\n" +
-                "- Classroom capacity limits\n" +
-                "- No double-booking");
+        // Validate data
+        if (dataManager.getTotalCourses() == 0) {
+            showAlert(Alert.AlertType.WARNING, "No Data",
+                    "Please import course data before generating a schedule.");
+            return;
+        }
+
+        if (dataManager.getTotalClassrooms() == 0) {
+            showAlert(Alert.AlertType.WARNING, "No Classrooms",
+                    "Please import classroom data before generating a schedule.");
+            return;
+        }
+
+        // Validate configuration
+        if (startDatePicker.getValue() == null) {
+            showAlert(Alert.AlertType.WARNING, "Missing Date",
+                    "Please select a start date for the exam period.");
+            return;
+        }
+
+        // Build configuration
+        ScheduleConfiguration config = buildConfiguration();
+
+        // Validate total slots
+        int totalSlots = config.getTotalSlots();
+        int totalCourses = dataManager.getTotalCourses();
+        int totalClassrooms = dataManager.getTotalClassrooms();
+
+        if (totalSlots * totalClassrooms < totalCourses) {
+            showAlert(Alert.AlertType.WARNING, "Insufficient Capacity",
+                    String.format(
+                            "Not enough time slots! You have %d courses but only %d total capacity (%d slots × %d classrooms).\n\nPlease increase days or slots per day.",
+                            totalCourses, totalSlots * totalClassrooms, totalSlots, totalClassrooms));
+            return;
+        }
+
+        // Start generation
+        startGeneration(config);
+    }
+
+    private ScheduleConfiguration buildConfiguration() {
+        ScheduleConfiguration config = new ScheduleConfiguration();
+
+        config.setNumDays(numDaysSpinner.getValue());
+        config.setSlotsPerDay(slotsPerDaySpinner.getValue());
+        config.setStartDate(startDatePicker.getValue());
+        config.setSlotDurationMinutes(slotDurationSpinner.getValue());
+        config.setAllowBackToBackExams(allowBackToBackCheckBox.isSelected());
+
+        // Parse start time
+        String timeStr = startTimeComboBox.getValue();
+        if (timeStr != null) {
+            String[] parts = timeStr.split(":");
+            config.setDayStartTime(LocalTime.of(Integer.parseInt(parts[0]), Integer.parseInt(parts[1])));
+        }
+
+        // Set optimization strategy
+        String strategyStr = strategyComboBox.getValue();
+        ScheduleConfiguration.OptimizationStrategy strategy = ScheduleConfiguration.OptimizationStrategy.DEFAULT;
+
+        if (strategyStr != null) {
+            if (strategyStr.contains("Minimize Days")) {
+                strategy = ScheduleConfiguration.OptimizationStrategy.MINIMIZE_DAYS;
+            } else if (strategyStr.contains("Balanced Distribution")) {
+                strategy = ScheduleConfiguration.OptimizationStrategy.BALANCED_DISTRIBUTION;
+            } else if (strategyStr.contains("Minimize Classrooms")) {
+                strategy = ScheduleConfiguration.OptimizationStrategy.MINIMIZE_CLASSROOMS;
+            } else if (strategyStr.contains("Balance Classrooms")) {
+                strategy = ScheduleConfiguration.OptimizationStrategy.BALANCE_CLASSROOMS;
+            } else if (strategyStr.contains("Student Friendly")) {
+                strategy = ScheduleConfiguration.OptimizationStrategy.STUDENT_FRIENDLY;
+            }
+        }
+        config.setOptimizationStrategy(strategy);
+
+        return config;
+    }
+
+    private void startGeneration(ScheduleConfiguration config) {
+        // Update UI for generation
+        generateButton.setDisable(true);
+        cancelButton.setDisable(false);
+        progressContainer.setVisible(true);
+        progressContainer.setManaged(true);
+        progressBar.setProgress(0);
+        progressLabel.setText("Initializing schedule generation...");
+        statusLabel.setText("⏳ Generating schedule...");
+        statusLabel.setStyle("-fx-text-fill: #3498db;");
+
+        long startTime = System.currentTimeMillis();
+
+        // Create generator service
+        generatorService = new ScheduleGeneratorService();
+        generatorService.setProgressListener((progress, message) -> {
+            Platform.runLater(() -> {
+                progressBar.setProgress(progress);
+                progressLabel.setText(message);
+            });
+        });
+
+        // Run generation in background thread
+        generationThread = new Thread(() -> {
+            ScheduleGeneratorService.ScheduleResult result = generatorService.generateSchedule(config);
+            long endTime = System.currentTimeMillis();
+            long duration = endTime - startTime;
+
+            Platform.runLater(() -> {
+                onGenerationComplete(result, config, duration);
+            });
+        });
+
+        generationThread.setDaemon(true);
+        generationThread.start();
+    }
+
+    private void onGenerationComplete(ScheduleGeneratorService.ScheduleResult result,
+            ScheduleConfiguration config, long durationMs) {
+        // Reset UI
+        generateButton.setDisable(false);
+        cancelButton.setDisable(true);
+        progressContainer.setVisible(false);
+        progressContainer.setManaged(false);
+
+        if (result.isSuccess()) {
+            currentSchedule = result.getScheduleState();
+
+            // Update status
+            statusLabel.setText("✓ Schedule generated successfully!");
+            statusLabel.setStyle("-fx-text-fill: #27ae60;");
+
+            // Update statistics
+            updateStatistics(currentSchedule, durationMs);
+
+            // Display schedule in grid
+            displayScheduleGrid(currentSchedule, config);
+
+            showAlert(Alert.AlertType.INFORMATION, "Success",
+                    "Exam schedule generated successfully!\n\n" +
+                            "Scheduled: " + currentSchedule.getAssignedCourses() + "/"
+                            + currentSchedule.getTotalCourses() + " courses\n" +
+                            "Time: " + durationMs + "ms");
+        } else if (result.wasCancelled()) {
+            statusLabel.setText("⚠️ Generation cancelled");
+            statusLabel.setStyle("-fx-text-fill: #f39c12;");
+        } else {
+            statusLabel.setText("❌ Generation failed");
+            statusLabel.setStyle("-fx-text-fill: #e74c3c;");
+
+            showAlert(Alert.AlertType.ERROR, "Generation Failed",
+                    result.getMessage()
+                            + "\n\nTry:\n• Increasing number of days\n• Increasing slots per day\n• Adding more classrooms");
+        }
+    }
+
+    private void updateStatistics(ScheduleState schedule, long durationMs) {
+        scheduledCoursesLabel.setText(String.valueOf(schedule.getAssignedCourses()));
+
+        // Count unique classrooms used
+        Set<String> usedClassrooms = new HashSet<>();
+        for (ExamAssignment assignment : schedule.getAssignments().values()) {
+            if (assignment.isAssigned() && assignment.getClassroomId() != null) {
+                usedClassrooms.add(assignment.getClassroomId());
+            }
+        }
+        classroomsUsedLabel.setText(String.valueOf(usedClassrooms.size()));
+
+        // Format generation time
+        if (durationMs < 1000) {
+            generationTimeLabel.setText(durationMs + "ms");
+        } else {
+            generationTimeLabel.setText(String.format("%.2fs", durationMs / 1000.0));
+        }
+    }
+
+    private void displayScheduleGrid(ScheduleState schedule, ScheduleConfiguration config) {
+        scheduleGrid.getChildren().clear();
+        scheduleGrid.getColumnConstraints().clear();
+        scheduleGrid.getRowConstraints().clear();
+
+        int numDays = config.getNumDays();
+        int slotsPerDay = config.getSlotsPerDay();
+
+        // Column constraints - make columns wider for better visibility
+        ColumnConstraints headerCol = new ColumnConstraints();
+        headerCol.setMinWidth(100);
+        headerCol.setPrefWidth(120);
+        scheduleGrid.getColumnConstraints().add(headerCol);
+
+        for (int day = 0; day < numDays; day++) {
+            ColumnConstraints dayCol = new ColumnConstraints();
+            dayCol.setMinWidth(180);
+            dayCol.setPrefWidth(220);
+            dayCol.setHgrow(Priority.ALWAYS);
+            scheduleGrid.getColumnConstraints().add(dayCol);
+        }
+
+        // Row constraints - make rows taller for better visibility
+        for (int slot = 0; slot <= slotsPerDay; slot++) {
+            RowConstraints rowConstraint = new RowConstraints();
+            rowConstraint.setMinHeight(80);
+            rowConstraint.setPrefHeight(100);
+            rowConstraint.setVgrow(Priority.SOMETIMES);
+            scheduleGrid.getRowConstraints().add(rowConstraint);
+        }
+
+        // Header row - Days
+        Label cornerLabel = createHeaderLabel("");
+        scheduleGrid.add(cornerLabel, 0, 0);
+
+        for (int day = 0; day < numDays; day++) {
+            Label dayLabel = createHeaderLabel("Day " + (day + 1) + "\n" +
+                    config.getStartDate().plusDays(day).toString());
+            scheduleGrid.add(dayLabel, day + 1, 0);
+        }
+
+        // Time slot rows
+        for (int slot = 0; slot < slotsPerDay; slot++) {
+            // Time slot label
+            TimeSlot timeSlot = config.getTimeSlot(0, slot);
+            String timeText = timeSlot != null ? timeSlot.getStartTime() + "\n-\n" + timeSlot.getEndTime()
+                    : "Slot " + (slot + 1);
+            Label slotLabel = createHeaderLabel(timeText);
+            scheduleGrid.add(slotLabel, 0, slot + 1);
+
+            // Cells for each day
+            for (int day = 0; day < numDays; day++) {
+                VBox cellContent = createScheduleCell(schedule, day, slot);
+                scheduleGrid.add(cellContent, day + 1, slot + 1);
+            }
+        }
+    }
+
+    private Label createHeaderLabel(String text) {
+        Label label = new Label(text);
+        label.setStyle("-fx-font-weight: bold; -fx-background-color: #34495e; -fx-text-fill: white; " +
+                "-fx-padding: 10; -fx-alignment: center;");
+        label.setMaxWidth(Double.MAX_VALUE);
+        label.setMaxHeight(Double.MAX_VALUE);
+        label.setAlignment(Pos.CENTER);
+        return label;
+    }
+
+    private VBox createScheduleCell(ScheduleState schedule, int day, int slot) {
+        VBox cell = new VBox(3);
+        cell.setPadding(new Insets(5));
+        cell.setAlignment(Pos.TOP_LEFT);
+        cell.setStyle("-fx-background-color: #ecf0f1; -fx-border-color: #bdc3c7; -fx-border-width: 1;");
+
+        // Find all exams at this day/slot
+        List<ExamAssignment> examsAtSlot = new ArrayList<>();
+        for (ExamAssignment assignment : schedule.getAssignments().values()) {
+            if (assignment.isAssigned() &&
+                    assignment.getDay() == day &&
+                    assignment.getTimeSlotIndex() == slot) {
+                examsAtSlot.add(assignment);
+            }
+        }
+
+        if (examsAtSlot.isEmpty()) {
+            Label emptyLabel = new Label("-");
+            emptyLabel.setStyle("-fx-text-fill: #95a5a6;");
+            cell.getChildren().add(emptyLabel);
+        } else {
+            // Sort by classroom
+            examsAtSlot.sort(Comparator.comparing(ExamAssignment::getClassroomId));
+
+            for (ExamAssignment exam : examsAtSlot) {
+                HBox examBox = new HBox(5);
+                examBox.setAlignment(Pos.CENTER_LEFT);
+                examBox.setStyle("-fx-background-color: #3498db; -fx-background-radius: 3; -fx-padding: 3 6;");
+
+                Label courseLabel = new Label(exam.getCourseCode());
+                courseLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 11;");
+
+                Label roomLabel = new Label("(" + exam.getClassroomId() + ")");
+                roomLabel.setStyle("-fx-text-fill: #d4e6f1; -fx-font-size: 10;");
+
+                examBox.getChildren().addAll(courseLabel, roomLabel);
+                cell.getChildren().add(examBox);
+            }
+
+            // Change cell color based on load
+            if (examsAtSlot.size() >= 3) {
+                cell.setStyle("-fx-background-color: #fadbd8; -fx-border-color: #e74c3c; -fx-border-width: 1;");
+            } else if (examsAtSlot.size() >= 2) {
+                cell.setStyle("-fx-background-color: #fcf3cf; -fx-border-color: #f39c12; -fx-border-width: 1;");
+            }
+        }
+
+        return cell;
+    }
+
+    @FXML
+    private void onCancelGeneration() {
+        if (generatorService != null) {
+            generatorService.cancel();
+        }
+
+        cancelButton.setDisable(true);
+        progressLabel.setText("Cancelling...");
+    }
+
+    private void showAlert(Alert.AlertType type, String title, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
         alert.showAndWait();
     }
 }
