@@ -5,6 +5,7 @@ import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import org.example.se302.model.*;
@@ -51,9 +52,13 @@ public class ScheduleCalendarController {
     @FXML
     private VBox progressContainer;
     @FXML
+    private ProgressIndicator progressIndicator;
+    @FXML
     private ProgressBar progressBar;
     @FXML
     private Label progressLabel;
+    @FXML
+    private Label progressDetailLabel;
 
     // Schedule display
     @FXML
@@ -248,7 +253,11 @@ public class ScheduleCalendarController {
         progressContainer.setVisible(true);
         progressContainer.setManaged(true);
         progressBar.setProgress(0);
-        progressLabel.setText("Initializing schedule generation...");
+        if (progressIndicator != null)
+            progressIndicator.setProgress(-1.0); // Indeterminate
+        progressLabel.setText("Generating Schedule...");
+        if (progressDetailLabel != null)
+            progressDetailLabel.setText("Initializing CSP solver...");
         statusLabel.setText("⏳ Generating schedule...");
         statusLabel.setStyle("-fx-text-fill: #3498db;");
 
@@ -259,7 +268,10 @@ public class ScheduleCalendarController {
         generatorService.setProgressListener((progress, message) -> {
             Platform.runLater(() -> {
                 progressBar.setProgress(progress);
-                progressLabel.setText(message);
+                if (progressIndicator != null)
+                    progressIndicator.setProgress(progress);
+                if (progressDetailLabel != null)
+                    progressDetailLabel.setText(message);
             });
         });
 
@@ -289,6 +301,9 @@ public class ScheduleCalendarController {
         if (result.isSuccess()) {
             currentSchedule = result.getScheduleState();
 
+            // Save schedule to DataManager (so other views can see it)
+            saveScheduleToDataManager(currentSchedule, config);
+
             // Update status
             statusLabel.setText("✓ Schedule generated successfully!");
             statusLabel.setStyle("-fx-text-fill: #27ae60;");
@@ -303,7 +318,8 @@ public class ScheduleCalendarController {
                     "Exam schedule generated successfully!\n\n" +
                             "Scheduled: " + currentSchedule.getAssignedCourses() + "/"
                             + currentSchedule.getTotalCourses() + " courses\n" +
-                            "Time: " + durationMs + "ms");
+                            "Time: " + durationMs + "ms\n\n" +
+                            "The schedule has been saved. You can now view individual schedules in 'Student Schedule' and 'Course Schedule' tabs.");
         } else if (result.wasCancelled()) {
             statusLabel.setText("⚠️ Generation cancelled");
             statusLabel.setStyle("-fx-text-fill: #f39c12;");
@@ -313,7 +329,30 @@ public class ScheduleCalendarController {
 
             showAlert(Alert.AlertType.ERROR, "Generation Failed",
                     result.getMessage()
-                            + "\n\nTry:\n• Increasing number of days\n• Increasing slots per day\n• Adding more classrooms");
+                            + "\n\nTry:\n• Increasing number of days\n• Increasing slots per day\n• Adding more classrooms\n• Switching to 'Allow back-to-back exams'");
+        }
+    }
+
+    private void saveScheduleToDataManager(ScheduleState schedule, ScheduleConfiguration config) {
+        // 1. Save configuration
+        dataManager.setActiveConfiguration(config);
+
+        // 2. Clear old schedule data from courses
+        for (Course course : dataManager.getCourses()) {
+            course.setExamSchedule(-1, -1, null);
+        }
+
+        // 3. Apply new schedule
+        for (ExamAssignment assignment : schedule.getAssignments().values()) {
+            if (assignment.isAssigned()) {
+                Course course = dataManager.getCourse(assignment.getCourseCode());
+                if (course != null) {
+                    course.setExamSchedule(
+                            assignment.getDay(),
+                            assignment.getTimeSlotIndex(),
+                            assignment.getClassroomId());
+                }
+            }
         }
     }
 
@@ -433,6 +472,10 @@ public class ScheduleCalendarController {
                 HBox examBox = new HBox(5);
                 examBox.setAlignment(Pos.CENTER_LEFT);
                 examBox.setStyle("-fx-background-color: #3498db; -fx-background-radius: 3; -fx-padding: 3 6;");
+                examBox.setCursor(Cursor.HAND);
+
+                // Add click handler
+                examBox.setOnMouseClicked(e -> showAssignmentDetails(exam));
 
                 Label courseLabel = new Label(exam.getCourseCode());
                 courseLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 11;");
@@ -441,6 +484,11 @@ public class ScheduleCalendarController {
                 roomLabel.setStyle("-fx-text-fill: #d4e6f1; -fx-font-size: 10;");
 
                 examBox.getChildren().addAll(courseLabel, roomLabel);
+
+                // Add tooltip
+                Tooltip tooltip = new Tooltip(exam.getCourseCode() + "\n" + exam.getClassroomId());
+                Tooltip.install(examBox, tooltip);
+
                 cell.getChildren().add(examBox);
             }
 
@@ -453,6 +501,35 @@ public class ScheduleCalendarController {
         }
 
         return cell;
+    }
+
+    private void showAssignmentDetails(ExamAssignment exam) {
+        Course course = dataManager.getCourse(exam.getCourseCode());
+        Classroom room = dataManager.getClassroom(exam.getClassroomId());
+
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Exam Details");
+        alert.setHeaderText(exam.getCourseCode());
+
+        StringBuilder content = new StringBuilder();
+        content.append("Course: ").append(exam.getCourseCode()).append("\n");
+        if (course != null) {
+            content.append("Students: ").append(course.getEnrolledStudentsCount()).append("\n");
+        }
+        content.append("\n");
+        content.append("Assigned Classroom: ").append(exam.getClassroomId()).append("\n");
+        if (room != null) {
+            content.append("Capacity: ").append(room.getCapacity()).append("\n");
+            double fillRatio = course != null ? (double) course.getEnrolledStudentsCount() / room.getCapacity() * 100
+                    : 0;
+            content.append(String.format("Utilization: %.1f%%\n", fillRatio));
+        }
+        content.append("\n");
+        content.append("Day: ").append(exam.getDay() + 1).append("\n");
+        content.append("Slot: ").append(exam.getTimeSlotIndex() + 1).append("\n");
+
+        alert.setContentText(content.toString());
+        alert.showAndWait();
     }
 
     @FXML

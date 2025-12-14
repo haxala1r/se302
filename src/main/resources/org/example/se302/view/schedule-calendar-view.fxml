@@ -94,10 +94,19 @@
                     <Label fx:id="statusLabel" text="Ready" styleClass="status-label"/>
                 </HBox>
                 
-                <!-- Progress Bar -->
-                <VBox fx:id="progressContainer" spacing="5" visible="false" managed="false">
-                    <ProgressBar fx:id="progressBar" prefWidth="400" progress="0"/>
-                    <Label fx:id="progressLabel" text="Initializing..."/>
+                <!-- Progress Container with Indicator -->
+                <VBox fx:id="progressContainer" spacing="8" visible="false" managed="false"
+                      style="-fx-background-color: #f8f9fa; -fx-padding: 15; -fx-background-radius: 5;">
+                    <HBox spacing="15" alignment="CENTER_LEFT">
+                        <ProgressIndicator fx:id="progressIndicator" prefWidth="30" prefHeight="30"/>
+                        <VBox spacing="3">
+                            <Label fx:id="progressLabel" text="Initializing..." 
+                                   style="-fx-font-weight: bold; -fx-font-size: 13;"/>
+                            <ProgressBar fx:id="progressBar" prefWidth="350" progress="0"/>
+                        </VBox>
+                    </HBox>
+                    <Label fx:id="progressDetailLabel" text="Please wait..." 
+                           style="-fx-text-fill: #7f8c8d; -fx-font-size: 11;"/>
                 </VBox>
             </VBox>
         </top>

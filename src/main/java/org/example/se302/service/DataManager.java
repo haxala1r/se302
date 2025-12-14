@@ -131,4 +131,15 @@ public class DataManager {
             course.addStudent(studentId);
         }
     }
+
+    // Schedule Configuration
+    private org.example.se302.model.ScheduleConfiguration activeConfiguration;
+
+    public org.example.se302.model.ScheduleConfiguration getActiveConfiguration() {
+        return activeConfiguration;
+    }
+
+    public void setActiveConfiguration(org.example.se302.model.ScheduleConfiguration activeConfiguration) {
+        this.activeConfiguration = activeConfiguration;
+    }
 }
