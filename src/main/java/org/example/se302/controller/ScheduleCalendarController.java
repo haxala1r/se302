@@ -7,8 +7,13 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.control.*;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.DataFormat;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.*;
 import org.example.se302.model.*;
+import org.example.se302.service.ConstraintValidationService;
 import org.example.se302.service.DataManager;
 import org.example.se302.service.ScheduleGeneratorService;
 
@@ -78,10 +83,16 @@ public class ScheduleCalendarController {
 
     // Services
     private final DataManager dataManager = DataManager.getInstance();
+    private final ConstraintValidationService validationService = new ConstraintValidationService();
     private ScheduleGeneratorService generatorService;
     private ScheduleState currentSchedule;
     private ScheduleConfiguration currentConfig;
     private Thread generationThread;
+
+    // Drag-and-drop state
+    private static final DataFormat EXAM_DATA_FORMAT = new DataFormat("application/x-exam-assignment");
+    private ExamAssignment draggedExam = null;
+    private Map<String, VBox> cellMap = new HashMap<>(); // "day_slot" -> cell VBox
 
     @FXML
     public void initialize() {
@@ -382,6 +393,7 @@ public class ScheduleCalendarController {
         scheduleGrid.getChildren().clear();
         scheduleGrid.getColumnConstraints().clear();
         scheduleGrid.getRowConstraints().clear();
+        cellMap.clear(); // Clear cell map for drag-and-drop
 
         int numDays = config.getNumDays();
         int slotsPerDay = config.getSlotsPerDay();
@@ -432,6 +444,9 @@ public class ScheduleCalendarController {
             for (int day = 0; day < numDays; day++) {
                 VBox cellContent = createScheduleCell(schedule, day, slot);
                 scheduleGrid.add(cellContent, day + 1, slot + 1);
+
+                // Store cell reference for drag-and-drop
+                cellMap.put(day + "_" + slot, cellContent);
             }
         }
     }
@@ -450,7 +465,11 @@ public class ScheduleCalendarController {
         VBox cell = new VBox(3);
         cell.setPadding(new Insets(5));
         cell.setAlignment(Pos.TOP_LEFT);
-        cell.setStyle("-fx-background-color: #ecf0f1; -fx-border-color: #bdc3c7; -fx-border-width: 1;");
+        String defaultCellStyle = "-fx-background-color: #ecf0f1; -fx-border-color: #bdc3c7; -fx-border-width: 1;";
+        cell.setStyle(defaultCellStyle);
+
+        // Store cell coordinates for drop handling
+        cell.setUserData(new int[] { day, slot });
 
         // Find all exams at this day/slot
         List<ExamAssignment> examsAtSlot = new ArrayList<>();
@@ -474,7 +493,7 @@ public class ScheduleCalendarController {
                 HBox examBox = new HBox(5);
                 examBox.setAlignment(Pos.CENTER_LEFT);
                 examBox.setStyle("-fx-background-color: #3498db; -fx-background-radius: 3; -fx-padding: 3 6;");
-                examBox.setCursor(Cursor.HAND);
+                examBox.setCursor(Cursor.MOVE);
 
                 Label courseLabel = new Label(exam.getCourseCode());
                 courseLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 11;");
@@ -485,17 +504,51 @@ public class ScheduleCalendarController {
                 examBox.getChildren().addAll(courseLabel, roomLabel);
 
                 // Hover highlight
-                examBox.setOnMouseEntered(e -> examBox
-                        .setStyle("-fx-background-color: #2980b9; -fx-background-radius: 3; -fx-padding: 3 6;"));
-                examBox.setOnMouseExited(e -> examBox
-                        .setStyle("-fx-background-color: #3498db; -fx-background-radius: 3; -fx-padding: 3 6;"));
+                examBox.setOnMouseEntered(e -> {
+                    if (draggedExam == null) {
+                        examBox.setStyle("-fx-background-color: #2980b9; -fx-background-radius: 3; -fx-padding: 3 6;");
+                    }
+                });
+                examBox.setOnMouseExited(e -> {
+                    if (draggedExam == null) {
+                        examBox.setStyle("-fx-background-color: #3498db; -fx-background-radius: 3; -fx-padding: 3 6;");
+                    }
+                });
 
                 // Click opens the edit dialog (which also shows details)
-                examBox.setOnMouseClicked(e -> openEditDialog(exam));
+                examBox.setOnMouseClicked(e -> {
+                    if (e.getClickCount() == 1 && draggedExam == null) {
+                        openEditDialog(exam);
+                    }
+                });
+
+                // DRAG SOURCE - Start drag on exam box
+                examBox.setOnDragDetected(e -> {
+                    draggedExam = exam;
+                    Dragboard db = examBox.startDragAndDrop(TransferMode.MOVE);
+                    ClipboardContent content = new ClipboardContent();
+                    content.put(EXAM_DATA_FORMAT, exam.getCourseCode());
+                    db.setContent(content);
+
+                    // Visual feedback - make the dragged box semi-transparent
+                    examBox.setOpacity(0.5);
+
+                    e.consume();
+                });
+
+                examBox.setOnDragDone(e -> {
+                    draggedExam = null;
+                    examBox.setOpacity(1.0);
+                    // Refresh grid to reset all cell colors
+                    if (currentSchedule != null && currentConfig != null) {
+                        displayScheduleGrid(currentSchedule, currentConfig);
+                    }
+                    e.consume();
+                });
 
                 // Tooltip with hint
                 Tooltip tooltip = new Tooltip(
-                        exam.getCourseCode() + "\n" + exam.getClassroomId() + "\nClick to view/edit");
+                        exam.getCourseCode() + "\n" + exam.getClassroomId() + "\nDrag to move, click to edit");
                 Tooltip.install(examBox, tooltip);
 
                 cell.getChildren().add(examBox);
@@ -509,7 +562,114 @@ public class ScheduleCalendarController {
             }
         }
 
+        // DROP TARGET - Set up cell as drop target
+        setupDropTarget(cell, day, slot);
+
         return cell;
+    }
+
+    /**
+     * Sets up a cell as a drop target for drag-and-drop operations.
+     */
+    private void setupDropTarget(VBox cell, int targetDay, int targetSlot) {
+        // Accept drag over this cell
+        cell.setOnDragOver(e -> {
+            if (e.getGestureSource() != cell && draggedExam != null && e.getDragboard().hasContent(EXAM_DATA_FORMAT)) {
+                e.acceptTransferModes(TransferMode.MOVE);
+            }
+            e.consume();
+        });
+
+        // Visual feedback when dragging over
+        cell.setOnDragEntered(e -> {
+            if (e.getGestureSource() != cell && draggedExam != null && e.getDragboard().hasContent(EXAM_DATA_FORMAT)) {
+                // Validate if this drop would be valid
+                String classroomId = draggedExam.getClassroomId();
+                ConstraintValidationService.ValidationResult result = validationService.validateAssignment(
+                        draggedExam.getCourseCode(),
+                        targetDay, targetSlot, classroomId, currentSchedule);
+
+                if (result.isValid()) {
+                    // Valid drop zone - green
+                    cell.setStyle("-fx-background-color: #d5f5e3; -fx-border-color: #27ae60; -fx-border-width: 2;");
+                } else {
+                    // Invalid drop zone - red
+                    cell.setStyle("-fx-background-color: #fadbd8; -fx-border-color: #e74c3c; -fx-border-width: 2;");
+                }
+            }
+            e.consume();
+        });
+
+        // Reset style when drag exits
+        cell.setOnDragExited(e -> {
+            // Reset to default style
+            cell.setStyle("-fx-background-color: #ecf0f1; -fx-border-color: #bdc3c7; -fx-border-width: 1;");
+            e.consume();
+        });
+
+        // Handle the drop
+        cell.setOnDragDropped(e -> {
+            boolean success = false;
+
+            if (draggedExam != null && e.getDragboard().hasContent(EXAM_DATA_FORMAT)) {
+                String classroomId = draggedExam.getClassroomId();
+
+                // Validate the drop
+                ConstraintValidationService.ValidationResult result = validationService.validateAssignment(
+                        draggedExam.getCourseCode(),
+                        targetDay, targetSlot, classroomId, currentSchedule);
+
+                if (result.isValid()) {
+                    // Perform the move
+                    success = performExamMove(draggedExam.getCourseCode(), targetDay, targetSlot, classroomId, false);
+                } else {
+                    // Show confirmation for invalid drop
+                    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+                    confirm.setTitle("Constraint Violation");
+                    confirm.setHeaderText("Move would violate constraints");
+                    confirm.setContentText(result.getFormattedMessage() + "\n\nDo you want to move anyway?");
+                    confirm.getButtonTypes().setAll(ButtonType.YES, ButtonType.NO);
+
+                    Optional<ButtonType> confirmResult = confirm.showAndWait();
+                    if (confirmResult.isPresent() && confirmResult.get() == ButtonType.YES) {
+                        success = performExamMove(draggedExam.getCourseCode(), targetDay, targetSlot, classroomId,
+                                true);
+                    }
+                }
+            }
+
+            e.setDropCompleted(success);
+            e.consume();
+        });
+    }
+
+    /**
+     * Performs an exam move operation and refreshes the display.
+     */
+    private boolean performExamMove(String courseCode, int newDay, int newSlot, String classroomId, boolean forced) {
+        // Update the ScheduleState
+        boolean updated = currentSchedule.updateAssignment(courseCode, newDay, newSlot, classroomId);
+
+        if (updated) {
+            // Also update the Course in DataManager
+            Course course = dataManager.getCourse(courseCode);
+            if (course != null) {
+                course.setExamSchedule(newDay, newSlot, classroomId);
+            }
+
+            // Update status
+            String message = forced ? "⚠️ Exam moved (with override)" : "✓ Exam moved successfully";
+            statusLabel.setText(message);
+            statusLabel.setStyle(forced ? "-fx-text-fill: #f39c12;" : "-fx-text-fill: #27ae60;");
+
+            // Log the change
+            System.out.println("Exam moved: " + courseCode + " -> Day " + (newDay + 1) +
+                    ", Slot " + (newSlot + 1) + ", Room " + classroomId +
+                    (forced ? " (forced)" : ""));
+
+            return true;
+        }
+        return false;
     }
 
     @FXML
