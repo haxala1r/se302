@@ -4,7 +4,6 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
-import javafx.util.Callback;
 import org.example.se302.model.Course;
 import org.example.se302.model.ScheduleConfiguration;
 import org.example.se302.model.Student;
@@ -95,7 +94,7 @@ public class ScheduleStudentController {
         if (selected == null)
             return;
 
-        selectedStudentLabel.setText("Exam Schedule for: " + selected.getStudentId() + " (" + selected.getName() + ")");
+        selectedStudentLabel.setText("Exam Schedule for: " + selected.getStudentId());
 
         refreshTable(selected);
     }
