@@ -80,6 +80,7 @@ public class ScheduleCalendarController {
     private final DataManager dataManager = DataManager.getInstance();
     private ScheduleGeneratorService generatorService;
     private ScheduleState currentSchedule;
+    private ScheduleConfiguration currentConfig;
     private Thread generationThread;
 
     @FXML
@@ -300,6 +301,7 @@ public class ScheduleCalendarController {
 
         if (result.isSuccess()) {
             currentSchedule = result.getScheduleState();
+            currentConfig = config;
 
             // Save schedule to DataManager (so other views can see it)
             saveScheduleToDataManager(currentSchedule, config);
@@ -474,9 +476,6 @@ public class ScheduleCalendarController {
                 examBox.setStyle("-fx-background-color: #3498db; -fx-background-radius: 3; -fx-padding: 3 6;");
                 examBox.setCursor(Cursor.HAND);
 
-                // Add click handler
-                examBox.setOnMouseClicked(e -> showAssignmentDetails(exam));
-
                 Label courseLabel = new Label(exam.getCourseCode());
                 courseLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 11;");
 
@@ -485,8 +484,18 @@ public class ScheduleCalendarController {
 
                 examBox.getChildren().addAll(courseLabel, roomLabel);
 
-                // Add tooltip
-                Tooltip tooltip = new Tooltip(exam.getCourseCode() + "\n" + exam.getClassroomId());
+                // Hover highlight
+                examBox.setOnMouseEntered(e -> examBox
+                        .setStyle("-fx-background-color: #2980b9; -fx-background-radius: 3; -fx-padding: 3 6;"));
+                examBox.setOnMouseExited(e -> examBox
+                        .setStyle("-fx-background-color: #3498db; -fx-background-radius: 3; -fx-padding: 3 6;"));
+
+                // Click opens the edit dialog (which also shows details)
+                examBox.setOnMouseClicked(e -> openEditDialog(exam));
+
+                // Tooltip with hint
+                Tooltip tooltip = new Tooltip(
+                        exam.getCourseCode() + "\n" + exam.getClassroomId() + "\nClick to view/edit");
                 Tooltip.install(examBox, tooltip);
 
                 cell.getChildren().add(examBox);
@@ -501,35 +510,6 @@ public class ScheduleCalendarController {
         }
 
         return cell;
-    }
-
-    private void showAssignmentDetails(ExamAssignment exam) {
-        Course course = dataManager.getCourse(exam.getCourseCode());
-        Classroom room = dataManager.getClassroom(exam.getClassroomId());
-
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Exam Details");
-        alert.setHeaderText(exam.getCourseCode());
-
-        StringBuilder content = new StringBuilder();
-        content.append("Course: ").append(exam.getCourseCode()).append("\n");
-        if (course != null) {
-            content.append("Students: ").append(course.getEnrolledStudentsCount()).append("\n");
-        }
-        content.append("\n");
-        content.append("Assigned Classroom: ").append(exam.getClassroomId()).append("\n");
-        if (room != null) {
-            content.append("Capacity: ").append(room.getCapacity()).append("\n");
-            double fillRatio = course != null ? (double) course.getEnrolledStudentsCount() / room.getCapacity() * 100
-                    : 0;
-            content.append(String.format("Utilization: %.1f%%\n", fillRatio));
-        }
-        content.append("\n");
-        content.append("Day: ").append(exam.getDay() + 1).append("\n");
-        content.append("Slot: ").append(exam.getTimeSlotIndex() + 1).append("\n");
-
-        alert.setContentText(content.toString());
-        alert.showAndWait();
     }
 
     @FXML
@@ -548,5 +528,61 @@ public class ScheduleCalendarController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    /**
+     * Opens the edit dialog for an exam assignment.
+     */
+    private void openEditDialog(ExamAssignment exam) {
+        if (currentSchedule == null || currentConfig == null) {
+            showAlert(Alert.AlertType.WARNING, "Cannot Edit",
+                    "No schedule is currently loaded. Please generate a schedule first.");
+            return;
+        }
+
+        ExamEditDialog dialog = new ExamEditDialog(exam, currentSchedule, currentConfig);
+        dialog.showAndWait().ifPresent(result -> {
+            applyExamEdit(result);
+        });
+    }
+
+    /**
+     * Applies an edit result to the schedule.
+     */
+    private void applyExamEdit(ExamEditDialog.EditResult result) {
+        if (result == null)
+            return;
+
+        String courseCode = result.getCourseCode();
+        int newDay = result.getDay();
+        int newSlot = result.getTimeSlot();
+        String newClassroom = result.getClassroomId();
+
+        // Update the ScheduleState
+        boolean updated = currentSchedule.updateAssignment(courseCode, newDay, newSlot, newClassroom);
+
+        if (updated) {
+            // Also update the Course in DataManager
+            Course course = dataManager.getCourse(courseCode);
+            if (course != null) {
+                course.setExamSchedule(newDay, newSlot, newClassroom);
+            }
+
+            // Refresh the grid display
+            displayScheduleGrid(currentSchedule, currentConfig);
+
+            // Update status
+            String message = result.isForcedOverride() ? "⚠️ Exam moved (with override)" : "✓ Exam moved successfully";
+            statusLabel.setText(message);
+            statusLabel.setStyle(result.isForcedOverride() ? "-fx-text-fill: #f39c12;" : "-fx-text-fill: #27ae60;");
+
+            // Log the change
+            System.out.println("Exam edited: " + courseCode + " -> Day " + (newDay + 1) +
+                    ", Slot " + (newSlot + 1) + ", Room " + newClassroom +
+                    (result.isForcedOverride() ? " (forced)" : ""));
+        } else {
+            showAlert(Alert.AlertType.ERROR, "Edit Failed",
+                    "Could not update the exam assignment. The exam may be locked.");
+        }
     }
 }
