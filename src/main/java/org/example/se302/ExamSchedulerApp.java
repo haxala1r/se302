@@ -4,8 +4,10 @@ import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import org.example.se302.data.DatabaseManager;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
 /**
  * Main JavaFX Application for Exam Scheduling System.
@@ -22,6 +24,16 @@ public class ExamSchedulerApp extends Application {
         // Load CSS stylesheet
         String css = ExamSchedulerApp.class.getResource("css/application.css").toExternalForm();
         scene.getStylesheets().add(css);
+
+        //create tables in database if does not exists
+        try{
+
+            DatabaseManager.CreateTable();
+        }
+        catch (SQLException e)
+        {
+
+        }
 
         stage.setTitle("Exam Scheduling System v1.0");
         stage.setMinWidth(900);

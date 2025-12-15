@@ -1,11 +1,14 @@
 package org.example.se302.data;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
+import org.example.se302.model.ExamSchedule;
+
+import java.sql.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class DatabaseManager {
+
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private static final String JDBC_URL = "jdbc:sqlite:src/main/resources/db/exam_scheduler.db";
 
@@ -13,7 +16,6 @@ public class DatabaseManager {
             "CREATE TABLE IF NOT EXISTS schedules (" +
                     "    schedule_id INTEGER PRIMARY KEY AUTOINCREMENT," +
                     "    name TEXT NOT NULL," +
-                    "    description TEXT," +
                     "    created_at DATETIME NOT NULL," +
                     "    last_modified DATETIME NOT NULL," +
                     "    is_finalized BOOLEAN NOT NULL DEFAULT 0," +
@@ -59,9 +61,6 @@ public class DatabaseManager {
         }
 
     }
-
-
-
 
 
 }
