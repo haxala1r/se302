@@ -1,6 +1,7 @@
 module org.example.se302 {
     requires javafx.controls;
     requires javafx.fxml;
+    requires java.sql;
 
     // Export all packages
     exports org.example.se302;
