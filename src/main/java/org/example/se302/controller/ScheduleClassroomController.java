@@ -8,6 +8,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import org.example.se302.model.Classroom;
 import org.example.se302.model.ExamAssignment;
@@ -16,6 +17,7 @@ import org.example.se302.service.DataManager;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.Map;
 
 /**
@@ -64,6 +66,52 @@ public class ScheduleClassroomController {
                                 cellData -> new SimpleIntegerProperty(cellData.getValue().getStudentCount()));
                 utilizationColumn.setCellValueFactory(
                                 cellData -> new SimpleStringProperty(cellData.getValue().getUtilization()));
+
+                // Custom comparators for proper sorting
+                dateColumn.setComparator((d1, d2) -> {
+                        if (d1.startsWith("Day") && d2.startsWith("Day")) {
+                                try {
+                                        int day1 = Integer.parseInt(d1.replace("Day ", ""));
+                                        int day2 = Integer.parseInt(d2.replace("Day ", ""));
+                                        return Integer.compare(day1, day2);
+                                } catch (NumberFormatException e) {
+                                        return d1.compareTo(d2);
+                                }
+                        }
+                        return d1.compareTo(d2);
+                });
+
+                timeColumn.setComparator((t1, t2) -> {
+                        try {
+                                int slot1 = Integer.parseInt(t1.replace("Slot ", ""));
+                                int slot2 = Integer.parseInt(t2.replace("Slot ", ""));
+                                return Integer.compare(slot1, slot2);
+                        } catch (NumberFormatException e) {
+                                return t1.compareTo(t2);
+                        }
+                });
+
+                // Color-code rows by utilization percentage
+                scheduleTable.setRowFactory(tv -> new TableRow<ClassroomSlotEntry>() {
+                        @Override
+                        protected void updateItem(ClassroomSlotEntry item, boolean empty) {
+                                super.updateItem(item, empty);
+                                if (empty || item == null) {
+                                        setStyle("");
+                                } else {
+                                        int utilPercent = item.getUtilizationPercent();
+                                        if (utilPercent >= 90) {
+                                                setStyle("-fx-background-color: #FFCDD2;"); // Red - high
+                                        } else if (utilPercent >= 70) {
+                                                setStyle("-fx-background-color: #FFF9C4;"); // Yellow - medium
+                                        } else if (utilPercent > 0) {
+                                                setStyle("-fx-background-color: #C8E6C9;"); // Green - low
+                                        } else {
+                                                setStyle("-fx-background-color: #F5F5F5;"); // Gray - empty
+                                        }
+                                }
+                        }
+                });
         }
 
         /**
@@ -116,7 +164,8 @@ public class ScheduleClassroomController {
 
                                         entries.add(new ClassroomSlotEntry(
                                                         dateStr, timeStr, assignment.getCourseCode(),
-                                                        studentCount, utilizationStr));
+                                                        studentCount, utilizationStr, utilizationPercent,
+                                                        assignment.getDay(), assignment.getTimeSlotIndex()));
 
                                         usedSlots++;
                                         totalStudents += studentCount;
@@ -128,6 +177,10 @@ public class ScheduleClassroomController {
                                 totalSlots = configuration.getNumDays() * configuration.getSlotsPerDay();
                         }
                 }
+
+                // Sort by day then slot
+                entries.sort(Comparator.comparingInt(ClassroomSlotEntry::getDayIndex)
+                                .thenComparingInt(ClassroomSlotEntry::getSlotIndex));
 
                 scheduleTable.setItems(entries);
 
@@ -149,14 +202,20 @@ public class ScheduleClassroomController {
                 private final String course;
                 private final int studentCount;
                 private final String utilization;
+                private final int utilizationPercent;
+                private final int dayIndex;
+                private final int slotIndex;
 
                 public ClassroomSlotEntry(String date, String time, String course, int studentCount,
-                                String utilization) {
+                                String utilization, int utilizationPercent, int dayIndex, int slotIndex) {
                         this.date = date;
                         this.time = time;
                         this.course = course;
                         this.studentCount = studentCount;
                         this.utilization = utilization;
+                        this.utilizationPercent = utilizationPercent;
+                        this.dayIndex = dayIndex;
+                        this.slotIndex = slotIndex;
                 }
 
                 public String getDate() {
@@ -177,6 +236,18 @@ public class ScheduleClassroomController {
 
                 public String getUtilization() {
                         return utilization;
+                }
+
+                public int getUtilizationPercent() {
+                        return utilizationPercent;
+                }
+
+                public int getDayIndex() {
+                        return dayIndex;
+                }
+
+                public int getSlotIndex() {
+                        return slotIndex;
                 }
         }
 }
