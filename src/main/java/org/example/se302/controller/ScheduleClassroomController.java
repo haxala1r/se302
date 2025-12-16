@@ -85,6 +85,9 @@ public class ScheduleClassroomController {
                                 " (Capacity: " + selected.getCapacity() + ")");
 
                 ObservableList<ClassroomSlotEntry> entries = FXCollections.observableArrayList();
+                int totalSlots = 0;
+                int usedSlots = 0;
+                int totalStudents = 0;
 
                 // If we have assignments, filter by this classroom
                 if (currentAssignments != null && !currentAssignments.isEmpty()) {
@@ -105,15 +108,38 @@ public class ScheduleClassroomController {
                                         // Format time
                                         String timeStr = "Slot " + (assignment.getTimeSlotIndex() + 1);
 
+                                        // Calculate utilization percentage for this slot
+                                        int studentCount = assignment.getStudentCount();
+                                        int capacity = selected.getCapacity();
+                                        int utilizationPercent = capacity > 0 ? (studentCount * 100) / capacity : 0;
+                                        String utilizationStr = utilizationPercent + "%";
+
                                         entries.add(new ClassroomSlotEntry(
                                                         dateStr, timeStr, assignment.getCourseCode(),
-                                                        assignment.getStudentCount(), "-"));
+                                                        studentCount, utilizationStr));
+
+                                        usedSlots++;
+                                        totalStudents += studentCount;
                                 }
+                        }
+
+                        // Calculate total possible slots
+                        if (configuration != null) {
+                                totalSlots = configuration.getNumDays() * configuration.getSlotsPerDay();
                         }
                 }
 
                 scheduleTable.setItems(entries);
-                utilizationLabel.setText("Exams shown: " + entries.size());
+
+                // Update overall utilization label
+                if (totalSlots > 0) {
+                        int overallUtilization = (usedSlots * 100) / totalSlots;
+                        utilizationLabel.setText(String.format(
+                                        "Overall Utilization: %d%% (%d/%d slots used, %d total students)",
+                                        overallUtilization, usedSlots, totalSlots, totalStudents));
+                } else {
+                        utilizationLabel.setText("Overall Utilization: 0% (No schedule data available)");
+                }
         }
 
         // Helper class for table entries
