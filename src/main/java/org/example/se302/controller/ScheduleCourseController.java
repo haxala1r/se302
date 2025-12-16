@@ -6,6 +6,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import org.example.se302.model.Course;
 import org.example.se302.model.ExamAssignment;
@@ -16,6 +17,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.Map;
+
+// Color palette for days (pastel colors for readability)
+// Day 0 = Light Blue, Day 1 = Light Green, Day 2 = Light Yellow, etc.
 
 /**
  * Controller for the Course Schedule view.
@@ -80,6 +84,35 @@ public class ScheduleCourseController {
                                 return Integer.compare(slot1, slot2);
                         } catch (NumberFormatException e) {
                                 return time1.compareTo(time2);
+                        }
+                });
+
+                // Color-code rows by day
+                courseScheduleTable.setRowFactory(tv -> new TableRow<CourseScheduleEntry>() {
+                        // Pastel color palette for different days
+                        private final String[] dayColors = {
+                                        "#E3F2FD", // Day 0 - Light Blue
+                                        "#E8F5E9", // Day 1 - Light Green
+                                        "#FFF8E1", // Day 2 - Light Yellow
+                                        "#FCE4EC", // Day 3 - Light Pink
+                                        "#F3E5F5", // Day 4 - Light Purple
+                                        "#E0F7FA", // Day 5 - Light Cyan
+                                        "#FBE9E7" // Day 6 - Light Orange
+                        };
+
+                        @Override
+                        protected void updateItem(CourseScheduleEntry item, boolean empty) {
+                                super.updateItem(item, empty);
+                                if (empty || item == null) {
+                                        setStyle("");
+                                } else if (item.getDayIndex() == Integer.MAX_VALUE) {
+                                        // Not scheduled - gray background
+                                        setStyle("-fx-background-color: #F5F5F5;");
+                                } else {
+                                        // Color by day (cycle through palette)
+                                        int colorIndex = item.getDayIndex() % dayColors.length;
+                                        setStyle("-fx-background-color: " + dayColors[colorIndex] + ";");
+                                }
                         }
                 });
 
