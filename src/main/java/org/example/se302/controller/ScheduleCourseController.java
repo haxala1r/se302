@@ -14,11 +14,13 @@ import org.example.se302.service.DataManager;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.Map;
 
 /**
  * Controller for the Course Schedule view.
  * Displays courses with their exam date, time, and assigned classroom.
+ * Supports sorting by date/time.
  */
 public class ScheduleCourseController {
 
@@ -56,6 +58,31 @@ public class ScheduleCourseController {
                 classroomColumn.setCellValueFactory(
                                 cellData -> new SimpleStringProperty(cellData.getValue().getClassroom()));
 
+                // Enable custom sorting by day and slot (not alphabetical by string)
+                dateColumn.setComparator((date1, date2) -> {
+                        // "Not Scheduled" should always be last
+                        if (date1.equals("Not Scheduled"))
+                                return 1;
+                        if (date2.equals("Not Scheduled"))
+                                return -1;
+                        return date1.compareTo(date2);
+                });
+
+                timeColumn.setComparator((time1, time2) -> {
+                        // Extract slot number for proper numeric sorting
+                        if (time1.equals("-"))
+                                return 1;
+                        if (time2.equals("-"))
+                                return -1;
+                        try {
+                                int slot1 = Integer.parseInt(time1.replace("Slot ", ""));
+                                int slot2 = Integer.parseInt(time2.replace("Slot ", ""));
+                                return Integer.compare(slot1, slot2);
+                        } catch (NumberFormatException e) {
+                                return time1.compareTo(time2);
+                        }
+                });
+
                 // Load data
                 loadScheduleData();
 
@@ -84,24 +111,28 @@ public class ScheduleCourseController {
                         String dateStr = "Not Scheduled";
                         String timeStr = "-";
                         String classroomStr = "-";
+                        int dayIndex = Integer.MAX_VALUE; // For sorting unscheduled items last
+                        int slotIndex = Integer.MAX_VALUE;
 
                         // Check if we have an assignment for this course
                         if (currentAssignments != null && currentAssignments.containsKey(courseCode)) {
                                 ExamAssignment assignment = currentAssignments.get(courseCode);
 
                                 if (assignment.isAssigned()) {
+                                        dayIndex = assignment.getDay();
+                                        slotIndex = assignment.getTimeSlotIndex();
+
                                         // Format date based on configuration start date + day offset
                                         if (configuration != null && configuration.getStartDate() != null) {
-                                                LocalDate examDate = configuration.getStartDate()
-                                                                .plusDays(assignment.getDay());
+                                                LocalDate examDate = configuration.getStartDate().plusDays(dayIndex);
                                                 dateStr = examDate.format(
                                                                 DateTimeFormatter.ofPattern("dd/MM/yyyy (EEEE)"));
                                         } else {
-                                                dateStr = "Day " + (assignment.getDay() + 1);
+                                                dateStr = "Day " + (dayIndex + 1);
                                         }
 
                                         // Format time slot
-                                        timeStr = "Slot " + (assignment.getTimeSlotIndex() + 1);
+                                        timeStr = "Slot " + (slotIndex + 1);
 
                                         // Classroom
                                         classroomStr = assignment.getClassroomId() != null ? assignment.getClassroomId()
@@ -109,8 +140,13 @@ public class ScheduleCourseController {
                                 }
                         }
 
-                        entries.add(new CourseScheduleEntry(courseCode, enrolled, dateStr, timeStr, classroomStr));
+                        entries.add(new CourseScheduleEntry(courseCode, enrolled, dateStr, timeStr, classroomStr,
+                                        dayIndex, slotIndex));
                 }
+
+                // Sort by day first, then by slot
+                entries.sort(Comparator.comparingInt(CourseScheduleEntry::getDayIndex)
+                                .thenComparingInt(CourseScheduleEntry::getSlotIndex));
 
                 courseScheduleTable.setItems(entries);
         }
@@ -122,14 +158,18 @@ public class ScheduleCourseController {
                 private final String date;
                 private final String time;
                 private final String classroom;
+                private final int dayIndex;
+                private final int slotIndex;
 
                 public CourseScheduleEntry(String courseCode, int enrolledCount, String date, String time,
-                                String classroom) {
+                                String classroom, int dayIndex, int slotIndex) {
                         this.courseCode = courseCode;
                         this.enrolledCount = enrolledCount;
                         this.date = date;
                         this.time = time;
                         this.classroom = classroom;
+                        this.dayIndex = dayIndex;
+                        this.slotIndex = slotIndex;
                 }
 
                 public String getCourseCode() {
@@ -150,6 +190,14 @@ public class ScheduleCourseController {
 
                 public String getClassroom() {
                         return classroom;
+                }
+
+                public int getDayIndex() {
+                        return dayIndex;
+                }
+
+                public int getSlotIndex() {
+                        return slotIndex;
                 }
         }
 }
