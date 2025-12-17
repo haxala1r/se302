@@ -24,34 +24,55 @@
         </VBox>
     </top>
 
-    <!-- Center: Main TabPane -->
+    <!-- Left: Sidebar Navigation -->
+    <left>
+        <VBox fx:id="sidebar" spacing="5" minWidth="180" prefWidth="200" 
+              style="-fx-background-color: linear-gradient(to bottom, #2c3e50, #1a252f); -fx-padding: 15;">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+            
+            <Button fx:id="importBtn" text="📁 Import Data" onAction="#onShowImport" 
+                    maxWidth="Infinity" styleClass="sidebar-button"/>
+            
+            <Button fx:id="studentsBtn" text="👤 Students" onAction="#onShowStudents" 
+                    maxWidth="Infinity" styleClass="sidebar-button" disable="true"/>
+            
+            <Button fx:id="coursesBtn" text="📚 Courses" onAction="#onShowCourses" 
+                    maxWidth="Infinity" styleClass="sidebar-button" disable="true"/>
+            
+            <Button fx:id="classroomsBtn" text="🏛️ Classrooms" onAction="#onShowClassrooms" 
+                    maxWidth="Infinity" styleClass="sidebar-button" disable="true"/>
+            
+            <Button fx:id="scheduleBtn" text="📅 Schedule" onAction="#onToggleScheduleMenu" 
+                    maxWidth="Infinity" styleClass="sidebar-button" disable="true"/>
+            
+            <!-- Schedule Sub-menu (initially hidden) -->
+            <VBox fx:id="scheduleSubMenu" spacing="2" managed="false" visible="false">
+                <padding>
+                    <Insets left="15"/>
+                </padding>
+                <Button fx:id="calendarBtn" text="📆 Calendar View" onAction="#onShowCalendar" 
+                        maxWidth="Infinity" styleClass="sidebar-button-sub"/>
+                <Button fx:id="studentScheduleBtn" text="👤 Student Schedule" onAction="#onShowStudentSchedule" 
+                        maxWidth="Infinity" styleClass="sidebar-button-sub"/>
+                <Button fx:id="courseScheduleBtn" text="📚 Course Schedule" onAction="#onShowCourseSchedule" 
+                        maxWidth="Infinity" styleClass="sidebar-button-sub"/>
+                <Button fx:id="classroomScheduleBtn" text="🏛️ Classroom Schedule" onAction="#onShowClassroomSchedule" 
+                        maxWidth="Infinity" styleClass="sidebar-button-sub"/>
+            </VBox>
+            
+            <Region VBox.vgrow="ALWAYS"/>
+            
+            <Label text="Navigation" style="-fx-text-fill: rgba(255,255,255,0.5); -fx-font-size: 10px;"/>
+        </VBox>
+    </left>
+
+    <!-- Center: Content Area -->
     <center>
-        <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE">
-            <!-- Import Data Tab -->
-            <Tab fx:id="importTab" text="📁 Import Data">
-                <fx:include source="import-view.fxml"/>
-            </Tab>
-
-            <!-- Students Tab -->
-            <Tab fx:id="studentsTab" text="👤 Students">
-                <fx:include source="students-view.fxml"/>
-            </Tab>
-
-            <!-- Courses Tab -->
-            <Tab fx:id="coursesTab" text="📚 Courses">
-                <fx:include source="courses-view.fxml"/>
-            </Tab>
-
-            <!-- Classrooms Tab -->
-            <Tab fx:id="classroomsTab" text="🏛️ Classrooms">
-                <fx:include source="classrooms-view.fxml"/>
-            </Tab>
-
-            <!-- Schedule Views Tab -->
-            <Tab fx:id="scheduleTab" text="📅 Schedule Views">
-                <fx:include source="schedule-views.fxml"/>
-            </Tab>
-        </TabPane>
+        <StackPane fx:id="contentArea">
+            <!-- Views are loaded dynamically by controller -->
+        </StackPane>
     </center>
 
     <!-- Bottom: Status Bar -->

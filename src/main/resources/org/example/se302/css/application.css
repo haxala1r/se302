@@ -613,3 +613,58 @@
 * {
     -fx-transition: all 0.2s ease-in-out;
 }
+
+/* ===== Sidebar Navigation ===== */
+.sidebar-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: rgba(255, 255, 255, 0.8);
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-padding: 12 16;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-alignment: CENTER_LEFT;
+    -fx-cursor: hand;
+}
+
+.sidebar-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+    -fx-text-fill: white;
+}
+
+.sidebar-button:disabled {
+    -fx-text-fill: rgba(255, 255, 255, 0.3);
+    -fx-cursor: default;
+}
+
+.sidebar-button-active {
+    -fx-background-color: rgba(255, 255, 255, 0.15);
+    -fx-text-fill: white;
+    -fx-border-color: rgba(255, 255, 255, 0.3);
+    -fx-border-width: 0 0 0 3;
+}
+
+/* Sidebar Sub-buttons (indented) */
+.sidebar-button-sub {
+    -fx-background-color: transparent;
+    -fx-text-fill: rgba(255, 255, 255, 0.7);
+    -fx-font-size: 12px;
+    -fx-font-weight: 500;
+    -fx-padding: 8 12;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-alignment: CENTER_LEFT;
+    -fx-cursor: hand;
+}
+
+.sidebar-button-sub:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+    -fx-text-fill: white;
+}
+
+.sidebar-button-sub.sidebar-button-active {
+    -fx-background-color: rgba(79, 70, 229, 0.3);
+    -fx-text-fill: white;
+    -fx-border-color: #6366F1;
+    -fx-border-width: 0 0 0 2;
+}
