@@ -9,71 +9,108 @@
             fx:controller="org.example.se302.controller.ImportController"
             fitToWidth="true" fitToHeight="true"
             hbarPolicy="AS_NEEDED" vbarPolicy="AS_NEEDED">
-    <VBox spacing="20" styleClass="content-pane">
+    <VBox spacing="24" styleClass="content-pane">
         <padding>
-            <Insets top="20" right="20" bottom="20" left="20"/>
+            <Insets top="40" right="40" bottom="40" left="40"/>
         </padding>
 
         <!-- Header -->
-        <Label text="Import Data from CSV Files" styleClass="section-title"/>
-        <Label text="Select CSV files to import student, course, classroom, and enrollment data." wrapText="true"/>
-
-        <Separator/>
-
-        <!-- Students Import Section -->
         <VBox spacing="8">
-            <Label text="Student Data" styleClass="subsection-title"/>
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <TextField fx:id="studentFileField" promptText="No file selected" editable="false" HBox.hgrow="ALWAYS"/>
-                <Button fx:id="studentBrowseButton" text="Browse..." onAction="#onBrowseStudents"/>
-            </HBox>
-            <Label fx:id="studentStatusLabel" text="Not Loaded" styleClass="status-label"/>
-        </VBox>
-
-        <!-- Courses Import Section -->
-        <VBox spacing="8">
-            <Label text="Course Data" styleClass="subsection-title"/>
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <TextField fx:id="courseFileField" promptText="No file selected" editable="false" HBox.hgrow="ALWAYS"/>
-                <Button fx:id="courseBrowseButton" text="Browse..." onAction="#onBrowseCourses"/>
-            </HBox>
-            <Label fx:id="courseStatusLabel" text="Not Loaded" styleClass="status-label"/>
-        </VBox>
-
-        <!-- Classrooms Import Section -->
-        <VBox spacing="8">
-            <Label text="Classroom Data" styleClass="subsection-title"/>
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <TextField fx:id="classroomFileField" promptText="No file selected" editable="false" HBox.hgrow="ALWAYS"/>
-                <Button fx:id="classroomBrowseButton" text="Browse..." onAction="#onBrowseClassrooms"/>
-            </HBox>
-            <Label fx:id="classroomStatusLabel" text="Not Loaded" styleClass="status-label"/>
-        </VBox>
-
-        <!-- Enrollments Import Section -->
-        <VBox spacing="8">
-            <Label text="Enrollment Data" styleClass="subsection-title"/>
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <TextField fx:id="enrollmentFileField" promptText="No file selected" editable="false" HBox.hgrow="ALWAYS"/>
-                <Button fx:id="enrollmentBrowseButton" text="Browse..." onAction="#onBrowseEnrollments"/>
-            </HBox>
-            <Label fx:id="enrollmentStatusLabel" text="Not Loaded" styleClass="status-label"/>
+            <Label text="📁 Data Integration" styleClass="section-title"/>
+            <Label text="Upload CSV files to initialize the exam scheduling process." 
+                   styleClass="description-label" wrapText="true"/>
         </VBox>
 
         <Separator/>
 
-        <!-- Import Messages Area -->
-        <VBox spacing="5" VBox.vgrow="ALWAYS">
+        <!-- Import Cards Grid -->
+        <GridPane hgap="24" vgap="24">
+            <columnConstraints>
+                <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+            </columnConstraints>
+
+            <!-- Student Data Card -->
+            <VBox spacing="16" styleClass="card" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                <HBox spacing="12" alignment="CENTER_LEFT">
+                    <Label text="👤" style="-fx-font-size: 32px;"/>
+                    <VBox>
+                        <Label text="Student Data" styleClass="subsection-title"/>
+                        <Label text="students.csv" styleClass="status-label"/>
+                    </VBox>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Button fx:id="studentBrowseButton" text="Browse..." onAction="#onBrowseStudents" 
+                            styleClass="secondary-button, small-button"/>
+                </HBox>
+                <TextField fx:id="studentFileField" promptText="No file selected" editable="false"/>
+                <Label fx:id="studentStatusLabel" text="Not Loaded" styleClass="status-label"/>
+            </VBox>
+
+            <!-- Course Data Card -->
+            <VBox spacing="16" styleClass="card" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                <HBox spacing="12" alignment="CENTER_LEFT">
+                    <Label text="📚" style="-fx-font-size: 32px;"/>
+                    <VBox>
+                        <Label text="Course Data" styleClass="subsection-title"/>
+                        <Label text="courses.csv" styleClass="status-label"/>
+                    </VBox>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Button fx:id="courseBrowseButton" text="Browse..." onAction="#onBrowseCourses" 
+                            styleClass="secondary-button, small-button"/>
+                </HBox>
+                <TextField fx:id="courseFileField" promptText="No file selected" editable="false"/>
+                <Label fx:id="courseStatusLabel" text="Not Loaded" styleClass="status-label"/>
+            </VBox>
+
+            <!-- Classroom Data Card -->
+            <VBox spacing="16" styleClass="card" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                <HBox spacing="12" alignment="CENTER_LEFT">
+                    <Label text="🏛️" style="-fx-font-size: 32px;"/>
+                    <VBox>
+                        <Label text="Classroom Data" styleClass="subsection-title"/>
+                        <Label text="classrooms.csv" styleClass="status-label"/>
+                    </VBox>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Button fx:id="classroomBrowseButton" text="Browse..." onAction="#onBrowseClassrooms" 
+                            styleClass="secondary-button, small-button"/>
+                </HBox>
+                <TextField fx:id="classroomFileField" promptText="No file selected" editable="false"/>
+                <Label fx:id="classroomStatusLabel" text="Not Loaded" styleClass="status-label"/>
+            </VBox>
+
+            <!-- Enrollment Data Card -->
+            <VBox spacing="16" styleClass="card" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                <HBox spacing="12" alignment="CENTER_LEFT">
+                    <Label text="📝" style="-fx-font-size: 32px;"/>
+                    <VBox>
+                        <Label text="Enrollment Data" styleClass="subsection-title"/>
+                        <Label text="enrollments.csv" styleClass="status-label"/>
+                    </VBox>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Button fx:id="enrollmentBrowseButton" text="Browse..." onAction="#onBrowseEnrollments" 
+                            styleClass="secondary-button, small-button"/>
+                </HBox>
+                <TextField fx:id="enrollmentFileField" promptText="No file selected" editable="false"/>
+                <Label fx:id="enrollmentStatusLabel" text="Not Loaded" styleClass="status-label"/>
+            </VBox>
+        </GridPane>
+
+        <Separator/>
+
+        <!-- Import Log -->
+        <VBox spacing="12" VBox.vgrow="ALWAYS" styleClass="card">
             <Label text="Import Messages" styleClass="subsection-title"/>
             <TextArea fx:id="messagesArea" editable="false" wrapText="true" VBox.vgrow="ALWAYS"
-                      promptText="Validation messages and import results will appear here..."/>
+                      prefHeight="200"
+                      promptText="Validation messages and import results will appear here..."
+                      style="-fx-font-family: 'Consolas', 'Monaco', monospace; -fx-font-size: 12px;"/>
         </VBox>
 
         <!-- Action Buttons -->
-        <HBox spacing="10" alignment="CENTER_RIGHT">
-            <Button fx:id="importAllButton" text="Import All" onAction="#onImportAll"
-                    styleClass="primary-button" disable="true"/>
+        <HBox spacing="12" alignment="CENTER_RIGHT">
             <Button text="Clear All" onAction="#onClearAll"/>
+            <Button fx:id="importAllButton" text="📥 Import All" onAction="#onImportAll"
+                    styleClass="primary-button" disable="true"/>
         </HBox>
     </VBox>
 </ScrollPane>

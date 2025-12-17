@@ -1,6 +1,7 @@
 package org.example.se302.controller;
 
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -8,7 +9,7 @@ import org.example.se302.service.DataManager;
 
 /**
  * Main controller for the application window.
- * Manages the TabPane and status bar.
+ * Manages the TabPane, status bar, and theme toggling.
  */
 public class MainController {
 
@@ -33,7 +34,11 @@ public class MainController {
     @FXML
     private Label statusLabel;
 
+    @FXML
+    private Button themeToggleButton;
+
     private DataManager dataManager;
+    private boolean isDarkMode = false;
 
     @FXML
     public void initialize() {
@@ -78,8 +83,28 @@ public class MainController {
                     "Loaded: %d Students, %d Courses, %d Classrooms",
                     dataManager.getTotalStudents(),
                     dataManager.getTotalCourses(),
-                    dataManager.getTotalClassrooms()
-            ));
+                    dataManager.getTotalClassrooms()));
+        }
+    }
+
+    /**
+     * Toggle between light and dark themes.
+     */
+    @FXML
+    private void onToggleTheme() {
+        var root = mainTabPane.getScene().getRoot();
+        var styleClass = root.getStyleClass();
+
+        if (isDarkMode) {
+            // Switch to light mode
+            styleClass.remove("dark");
+            themeToggleButton.setText("🌙 Dark Mode");
+            isDarkMode = false;
+        } else {
+            // Switch to dark mode
+            styleClass.add("dark");
+            themeToggleButton.setText("☀️ Light Mode");
+            isDarkMode = true;
         }
     }
 }

@@ -9,10 +9,17 @@
             fx:controller="org.example.se302.controller.MainController"
             prefHeight="800.0" prefWidth="1200.0">
 
-    <!-- Top: Title Bar -->
+    <!-- Top: Title Bar with Theme Toggle -->
     <top>
         <VBox styleClass="header">
-            <Label text="Exam Scheduling System" styleClass="title-label"/>
+            <HBox alignment="CENTER_LEFT" spacing="20">
+                <padding>
+                    <Insets top="10" right="20" bottom="10" left="20"/>
+                </padding>
+                <Label text="📅 Exam Scheduling System" styleClass="title-label" HBox.hgrow="ALWAYS"/>
+                <Button fx:id="themeToggleButton" text="🌙 Dark Mode" onAction="#onToggleTheme" 
+                        style="-fx-background-color: rgba(255,255,255,0.2); -fx-text-fill: white; -fx-border-color: rgba(255,255,255,0.3); -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: 700;"/>
+            </HBox>
             <Separator/>
         </VBox>
     </top>
@@ -21,27 +28,27 @@
     <center>
         <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE">
             <!-- Import Data Tab -->
-            <Tab fx:id="importTab" text="Import Data">
+            <Tab fx:id="importTab" text="📁 Import Data">
                 <fx:include source="import-view.fxml"/>
             </Tab>
 
             <!-- Students Tab -->
-            <Tab fx:id="studentsTab" text="Students">
+            <Tab fx:id="studentsTab" text="👤 Students">
                 <fx:include source="students-view.fxml"/>
             </Tab>
 
             <!-- Courses Tab -->
-            <Tab fx:id="coursesTab" text="Courses">
+            <Tab fx:id="coursesTab" text="📚 Courses">
                 <fx:include source="courses-view.fxml"/>
             </Tab>
 
             <!-- Classrooms Tab -->
-            <Tab fx:id="classroomsTab" text="Classrooms">
+            <Tab fx:id="classroomsTab" text="🏛️ Classrooms">
                 <fx:include source="classrooms-view.fxml"/>
             </Tab>
 
             <!-- Schedule Views Tab -->
-            <Tab fx:id="scheduleTab" text="Schedule Views">
+            <Tab fx:id="scheduleTab" text="📅 Schedule Views">
                 <fx:include source="schedule-views.fxml"/>
             </Tab>
         </TabPane>
@@ -51,9 +58,11 @@
     <bottom>
         <HBox styleClass="status-bar" spacing="10">
             <padding>
-                <Insets top="5" right="10" bottom="5" left="10"/>
+                <Insets top="8" right="20" bottom="8" left="20"/>
             </padding>
-            <Label fx:id="statusLabel" text="Ready - No data loaded"/>
+            <Label text="🟢" style="-fx-font-size: 10px;"/>
+            <Label fx:id="statusLabel" text="Ready - No data loaded" HBox.hgrow="ALWAYS"/>
+            <Label text="ExamFlow v2.0" style="-fx-font-size: 11px; -fx-text-fill: -fx-slate-400; -fx-font-weight: 700;"/>
         </HBox>
     </bottom>
 </BorderPane>

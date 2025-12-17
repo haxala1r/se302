@@ -12,125 +12,131 @@
     
     <BorderPane styleClass="content-pane">
         <top>
-            <VBox spacing="15">
+            <VBox spacing="20">
                 <padding>
-                    <Insets top="20" right="20" bottom="10" left="20"/>
+                    <Insets top="40" right="40" bottom="20" left="40"/>
                 </padding>
                 
                 <!-- Page Title -->
-                <Label text="📅 Calendar View - Exam Schedule Generator" styleClass="section-title"/>
-                <Label text="Configure and generate an optimized exam schedule using CSP algorithm." 
-                       wrapText="true" styleClass="description-label"/>
+                <VBox spacing="8">
+                    <Label text="📅 Auto Schedule Generator" styleClass="section-title"/>
+                    <Label text="Configure and generate an optimized exam schedule using CSP algorithm with intelligent heuristics." 
+                           wrapText="true" styleClass="description-label"/>
+                </VBox>
                 
                 <Separator/>
                 
                 <!-- Configuration Panel -->
-                <VBox spacing="15" styleClass="config-panel">
-                    <Label text="Schedule Configuration" styleClass="subsection-title"/>
+                <VBox spacing="20" styleClass="config-panel">
+                    <Label text="⚙️ Schedule Configuration" styleClass="subsection-title"/>
                     
-                    <!-- Row 1: Days and Slots -->
-                    <HBox spacing="20" alignment="CENTER_LEFT">
-                        <VBox spacing="5">
-                            <Label text="Number of Days:"/>
-                            <Spinner fx:id="numDaysSpinner" min="1" max="30" initialValue="5" 
-                                     editable="true" prefWidth="100"/>
+                    <!-- Row 1: Time Configuration -->
+                    <GridPane hgap="16" vgap="12">
+                        <columnConstraints>
+                            <ColumnConstraints percentWidth="25"/>
+                            <ColumnConstraints percentWidth="25"/>
+                            <ColumnConstraints percentWidth="25"/>
+                            <ColumnConstraints percentWidth="25"/>
+                        </columnConstraints>
+                        
+                        <VBox spacing="6" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                            <Label text="Number of Days" styleClass="stat-label"/>
+                            <Spinner fx:id="numDaysSpinner" editable="true" prefWidth="120"/>
                         </VBox>
                         
-                        <VBox spacing="5">
-                            <Label text="Slots per Day:"/>
-                            <Spinner fx:id="slotsPerDaySpinner" min="1" max="10" initialValue="4" 
-                                     editable="true" prefWidth="100"/>
+                        <VBox spacing="6" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                            <Label text="Slots per Day" styleClass="stat-label"/>
+                            <Spinner fx:id="slotsPerDaySpinner" editable="true" prefWidth="120"/>
                         </VBox>
                         
-                        <VBox spacing="5">
-                            <Label text="Start Date:"/>
-                            <DatePicker fx:id="startDatePicker" promptText="Select Start Date" prefWidth="150"/>
+                        <VBox spacing="6" GridPane.columnIndex="2" GridPane.rowIndex="0">
+                            <Label text="Start Date" styleClass="stat-label"/>
+                            <DatePicker fx:id="startDatePicker" promptText="Select Date" prefWidth="150"/>
                         </VBox>
                         
-                        <VBox spacing="5">
-                            <Label text="Slot Duration (min):"/>
-                            <Spinner fx:id="slotDurationSpinner" min="30" max="240" initialValue="120" 
-                                     editable="true" prefWidth="100"/>
-                        </VBox>
-                    </HBox>
-                    
-                    <!-- Row 2: Strategy and Options -->
-                    <HBox spacing="20" alignment="CENTER_LEFT">
-                        <VBox spacing="5">
-                            <Label text="Optimization Strategy:"/>
-                            <ComboBox fx:id="strategyComboBox" prefWidth="200" promptText="Select Strategy"/>
+                        <VBox spacing="6" GridPane.columnIndex="3" GridPane.rowIndex="0">
+                            <Label text="Slot Duration (min)" styleClass="stat-label"/>
+                            <Spinner fx:id="slotDurationSpinner" editable="true" prefWidth="120"/>
                         </VBox>
                         
-                        <VBox spacing="5">
-                            <Label text="Day Start Time:"/>
+                        <!-- Row 2: Strategy Configuration -->
+                        <VBox spacing="6" GridPane.columnIndex="0" GridPane.rowIndex="1" GridPane.columnSpan="2">
+                            <Label text="Optimization Strategy" styleClass="stat-label"/>
+                            <ComboBox fx:id="strategyComboBox" prefWidth="250" promptText="Select Strategy"/>
+                        </VBox>
+                        
+                        <VBox spacing="6" GridPane.columnIndex="2" GridPane.rowIndex="1">
+                            <Label text="Day Start Time" styleClass="stat-label"/>
                             <ComboBox fx:id="startTimeComboBox" prefWidth="120" promptText="09:00"/>
                         </VBox>
                         
-                        <VBox spacing="5" alignment="CENTER_LEFT">
-                            <padding>
-                                <Insets top="18"/>
-                            </padding>
-                            <CheckBox fx:id="allowBackToBackCheckBox" text="Allow back-to-back exams" selected="true"/>
+                        <VBox spacing="6" alignment="CENTER_LEFT" GridPane.columnIndex="3" GridPane.rowIndex="1">
+                            <Label text="Options" styleClass="stat-label"/>
+                            <CheckBox fx:id="allowBackToBackCheckBox" text="Allow back-to-back" selected="true"/>
                         </VBox>
-                    </HBox>
+                    </GridPane>
                     
-                    <!-- Row 3: Summary -->
-                    <HBox spacing="10" alignment="CENTER_LEFT" styleClass="summary-row">
-                        <Label text="Configuration Summary:"/>
-                        <Label fx:id="summaryLabel" text="5 days × 4 slots = 20 total time slots" 
+                    <!-- Summary -->
+                    <HBox spacing="12" alignment="CENTER_LEFT" styleClass="summary-row">
+                        <Label text="📊 Total Time Slots:" style="-fx-font-weight: 700;"/>
+                        <Label fx:id="summaryLabel" text="5 days × 4 slots = 20 slots" 
                                styleClass="summary-value"/>
                     </HBox>
                 </VBox>
                 
                 <Separator/>
                 
-                <!-- Action Buttons -->
-                <HBox spacing="15" alignment="CENTER_LEFT">
+                <!-- Action Bar -->
+                <HBox spacing="16" alignment="CENTER_LEFT">
                     <Button fx:id="generateButton" text="🚀 Generate Schedule" 
-                            onAction="#onGenerateSchedule" styleClass="primary-button" prefWidth="180"/>
+                            onAction="#onGenerateSchedule" styleClass="primary-button"/>
                     <Button fx:id="cancelButton" text="Cancel" onAction="#onCancelGeneration" 
-                            disable="true" prefWidth="100"/>
+                            disable="true"/>
                     <Region HBox.hgrow="ALWAYS"/>
                     <Label fx:id="statusLabel" text="Ready" styleClass="status-label"/>
                 </HBox>
                 
-                <!-- Progress Container with Indicator -->
-                <VBox fx:id="progressContainer" spacing="8" visible="false" managed="false"
-                      style="-fx-background-color: #f8f9fa; -fx-padding: 15; -fx-background-radius: 5;">
-                    <HBox spacing="15" alignment="CENTER_LEFT">
-                        <ProgressIndicator fx:id="progressIndicator" prefWidth="30" prefHeight="30"/>
-                        <VBox spacing="3">
+                <!-- Progress Container -->
+                <VBox fx:id="progressContainer" spacing="12" visible="false" managed="false"
+                      styleClass="card">
+                    <HBox spacing="16" alignment="CENTER_LEFT">
+                        <ProgressIndicator fx:id="progressIndicator" prefWidth="32" prefHeight="32"/>
+                        <VBox spacing="4" HBox.hgrow="ALWAYS">
                             <Label fx:id="progressLabel" text="Initializing..." 
-                                   style="-fx-font-weight: bold; -fx-font-size: 13;"/>
-                            <ProgressBar fx:id="progressBar" prefWidth="350" progress="0"/>
+                                   style="-fx-font-weight: 700; -fx-font-size: 14px;"/>
+                            <ProgressBar fx:id="progressBar" prefWidth="400" progress="0" maxWidth="Infinity"/>
                         </VBox>
                     </HBox>
                     <Label fx:id="progressDetailLabel" text="Please wait..." 
-                           style="-fx-text-fill: #7f8c8d; -fx-font-size: 11;"/>
+                           style="-fx-text-fill: -fx-slate-600; -fx-font-size: 12px;"/>
                 </VBox>
             </VBox>
         </top>
         
         <center>
-            <VBox spacing="15">
+            <VBox spacing="20">
                 <padding>
-                    <Insets top="20" right="20" bottom="20" left="20"/>
+                    <Insets top="20" right="40" bottom="40" left="40"/>
                 </padding>
                 
-                <!-- Schedule Grid Container -->
-                <Label text="Generated Schedule" styleClass="subsection-title"/>
+                <!-- Schedule Grid Header -->
+                <HBox spacing="12" alignment="CENTER_LEFT">
+                    <Label text="📆 Generated Schedule" styleClass="subsection-title"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Button text="📥 Export PDF" styleClass="small-button"/>
+                </HBox>
                 
+                <!-- Schedule Grid -->
                 <ScrollPane fx:id="scheduleScrollPane" fitToWidth="true" fitToHeight="false"
                             prefHeight="500" minHeight="300"
                             hbarPolicy="ALWAYS" vbarPolicy="ALWAYS"
                             VBox.vgrow="ALWAYS"
-                            style="-fx-background-color: white; -fx-border-color: #bdc3c7; -fx-border-width: 1;">
+                            style="-fx-background: -fx-surface; -fx-border-color: -fx-slate-200; -fx-border-width: 1; -fx-border-radius: 24; -fx-background-radius: 24;">
                     <GridPane fx:id="scheduleGrid" gridLinesVisible="true" styleClass="schedule-grid"
                               minWidth="800" minHeight="400">
                         <padding>
                             <Insets top="10" right="10" bottom="10" left="10"/>
                         </padding>
-                        <!-- Grid will be populated dynamically -->
                         <Label text="Click 'Generate Schedule' to create an exam schedule" 
                                GridPane.columnIndex="0" GridPane.rowIndex="0" 
                                styleClass="placeholder-text" wrapText="true"/>
@@ -138,23 +144,23 @@
                 </ScrollPane>
                 
                 <!-- Statistics Panel -->
-                <HBox spacing="30" alignment="CENTER_LEFT" styleClass="stats-panel">
-                    <VBox spacing="3" alignment="CENTER">
+                <HBox spacing="24" alignment="CENTER_LEFT" styleClass="stats-panel">
+                    <VBox spacing="4" alignment="CENTER">
                         <Label fx:id="totalCoursesLabel" text="0" styleClass="stat-value"/>
                         <Label text="Total Courses" styleClass="stat-label"/>
                     </VBox>
                     <Separator orientation="VERTICAL"/>
-                    <VBox spacing="3" alignment="CENTER">
+                    <VBox spacing="4" alignment="CENTER">
                         <Label fx:id="scheduledCoursesLabel" text="0" styleClass="stat-value"/>
                         <Label text="Scheduled" styleClass="stat-label"/>
                     </VBox>
                     <Separator orientation="VERTICAL"/>
-                    <VBox spacing="3" alignment="CENTER">
+                    <VBox spacing="4" alignment="CENTER">
                         <Label fx:id="classroomsUsedLabel" text="0" styleClass="stat-value"/>
                         <Label text="Classrooms Used" styleClass="stat-label"/>
                     </VBox>
                     <Separator orientation="VERTICAL"/>
-                    <VBox spacing="3" alignment="CENTER">
+                    <VBox spacing="4" alignment="CENTER">
                         <Label fx:id="generationTimeLabel" text="-" styleClass="stat-value"/>
                         <Label text="Generation Time" styleClass="stat-label"/>
                     </VBox>
