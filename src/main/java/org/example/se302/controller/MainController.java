@@ -295,12 +295,12 @@ public class MainController {
         if (isDarkMode) {
             // Switch to light mode
             styleClass.remove("dark");
-            themeToggleButton.setText("🌙 Dark Mode");
+            themeToggleButton.setText("🌙");
             isDarkMode = false;
         } else {
             // Switch to dark mode
             styleClass.add("dark");
-            themeToggleButton.setText("☀️ Light Mode");
+            themeToggleButton.setText("🌞");
             isDarkMode = true;
         }
     }

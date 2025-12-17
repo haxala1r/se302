@@ -679,3 +679,192 @@
     -fx-border-color: transparent;
     -fx-border-width: 0;
 }
+
+/* ===== Dark Mode Component Overrides ===== */
+
+/* Secondary Button - needs explicit dark colors since palette is inverted */
+.root.dark .secondary-button {
+    -fx-background-color: #475569;
+    -fx-text-fill: #F8FAFC;
+    -fx-border-color: #475569;
+}
+
+.root.dark .secondary-button:hover {
+    -fx-background-color: #64748B;
+    -fx-border-color: #64748B;
+}
+
+/* Regular Button */
+.root.dark .button {
+    -fx-background-color: #334155;
+    -fx-border-color: #475569;
+    -fx-text-fill: #E2E8F0;
+}
+
+.root.dark .button:hover {
+    -fx-background-color: #475569;
+    -fx-border-color: #64748B;
+}
+
+/* Text Fields and Text Areas */
+.root.dark .text-field,
+.root.dark .text-area {
+    -fx-background-color: #1E293B;
+    -fx-border-color: #475569;
+    -fx-text-fill: #F1F5F9;
+    -fx-prompt-text-fill: #64748B;
+}
+
+.root.dark .text-field:focused,
+.root.dark .text-area:focused {
+    -fx-border-color: #6366F1;
+    -fx-background-color: #1E293B;
+}
+
+/* Cards */
+.root.dark .card {
+    -fx-background-color: #1E293B;
+    -fx-border-color: #334155;
+}
+
+/* Tables */
+.root.dark .table-view {
+    -fx-background-color: #1E293B;
+    -fx-border-color: #334155;
+}
+
+.root.dark .table-view .column-header {
+    -fx-background-color: #334155;
+    -fx-text-fill: #CBD5E1;
+}
+
+.root.dark .table-view .column-header-background {
+    -fx-background-color: #334155;
+}
+
+.root.dark .table-view .filler {
+    -fx-background-color: #334155;
+}
+
+.root.dark .table-view .table-cell {
+    -fx-text-fill: #E2E8F0;
+}
+
+.root.dark .table-row-cell {
+    -fx-background-color: #1E293B;
+}
+
+.root.dark .table-row-cell:odd {
+    -fx-background-color: #1a2332;
+}
+
+.root.dark .table-row-cell:selected {
+    -fx-background-color: #312E81;
+}
+
+/* Combo Box */
+.root.dark .combo-box {
+    -fx-background-color: #1E293B;
+    -fx-border-color: #475569;
+}
+
+.root.dark .combo-box .list-cell {
+    -fx-text-fill: #E2E8F0;
+    -fx-background-color: transparent;
+}
+
+.root.dark .combo-box-popup .list-view {
+    -fx-background-color: #1E293B;
+}
+
+.root.dark .combo-box-popup .list-cell {
+    -fx-background-color: #1E293B;
+    -fx-text-fill: #E2E8F0;
+}
+
+.root.dark .combo-box-popup .list-cell:hover {
+    -fx-background-color: #334155;
+}
+
+/* Labels */
+.root.dark .label {
+    -fx-text-fill: #E2E8F0;
+}
+
+.root.dark .description-label {
+    -fx-text-fill: #94A3B8;
+}
+
+.root.dark .status-label {
+    -fx-text-fill: #64748B;
+}
+
+/* Scroll Pane */
+.root.dark .scroll-pane {
+    -fx-background-color: #0F172A;
+}
+
+.root.dark .scroll-pane .viewport {
+    -fx-background-color: #0F172A;
+}
+
+/* Content Pane */
+.root.dark .content-pane {
+    -fx-background-color: #0F172A;
+}
+
+/* Separator */
+.root.dark .separator .line {
+    -fx-border-color: #334155;
+}
+
+/* Status Bar */
+.root.dark .status-bar {
+    -fx-background-color: #1E293B;
+    -fx-border-color: #334155;
+}
+
+/* Header */
+.root.dark .header {
+    -fx-background-color: linear-gradient(to right, #4338CA, #6366F1);
+}
+
+/* Sidebar - ensure same styling in dark mode */
+.root.dark .sidebar-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-text-fill: rgba(255, 255, 255, 0.75);
+}
+
+.root.dark .sidebar-button:hover {
+    -fx-background-color: transparent;
+    -fx-text-fill: white;
+}
+
+.root.dark .sidebar-button:disabled {
+    -fx-text-fill: rgba(255, 255, 255, 0.3);
+}
+
+.root.dark .sidebar-button-active {
+    -fx-background-color: transparent;
+    -fx-text-fill: #5eead4;
+    -fx-border-color: transparent;
+}
+
+.root.dark .sidebar-button-sub {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: rgba(255, 255, 255, 0.6);
+}
+
+.root.dark .sidebar-button-sub:hover {
+    -fx-background-color: transparent;
+    -fx-text-fill: white;
+}
+
+.root.dark .sidebar-button-sub.sidebar-button-active {
+    -fx-background-color: transparent;
+    -fx-text-fill: #5eead4;
+    -fx-border-color: transparent;
+}

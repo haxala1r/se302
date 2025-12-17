@@ -17,8 +17,8 @@
                     <Insets top="10" right="20" bottom="10" left="20"/>
                 </padding>
                 <Label text="📅 Exam Scheduling System" styleClass="title-label" HBox.hgrow="ALWAYS"/>
-                <Button fx:id="themeToggleButton" text="🌙 Dark Mode" onAction="#onToggleTheme" 
-                        style="-fx-background-color: rgba(255,255,255,0.2); -fx-text-fill: white; -fx-border-color: rgba(255,255,255,0.3); -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8; -fx-padding: 8 16; -fx-font-weight: 700;"/>
+                <Button fx:id="themeToggleButton" text="🌙" onAction="#onToggleTheme" 
+                        style="-fx-background-color: transparent; -fx-text-fill: white; -fx-border-color: transparent; -fx-border-width: 0; -fx-padding: 8; -fx-font-size: 18px; -fx-cursor: hand;"/>
             </HBox>
             <Separator/>
         </VBox>
