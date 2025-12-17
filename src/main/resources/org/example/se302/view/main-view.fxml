@@ -32,35 +32,53 @@
                 <Insets top="10" right="10" bottom="10" left="10"/>
             </padding>
             
-            <Button fx:id="importBtn" text="📁 Import Data" onAction="#onShowImport" 
+            <Button fx:id="importBtn" text="• Import Data" onAction="#onShowImport" 
                     maxWidth="Infinity" styleClass="sidebar-button"/>
             
-            <Button fx:id="studentsBtn" text="👤 Students" onAction="#onShowStudents" 
+            <Button fx:id="studentsBtn" text="• Students" onAction="#onToggleStudentsMenu" 
                     maxWidth="Infinity" styleClass="sidebar-button" disable="true"/>
             
-            <Button fx:id="coursesBtn" text="📚 Courses" onAction="#onShowCourses" 
-                    maxWidth="Infinity" styleClass="sidebar-button" disable="true"/>
-            
-            <Button fx:id="classroomsBtn" text="🏛️ Classrooms" onAction="#onShowClassrooms" 
-                    maxWidth="Infinity" styleClass="sidebar-button" disable="true"/>
-            
-            <Button fx:id="scheduleBtn" text="📅 Schedule" onAction="#onToggleScheduleMenu" 
-                    maxWidth="Infinity" styleClass="sidebar-button" disable="true"/>
-            
-            <!-- Schedule Sub-menu (initially hidden) -->
-            <VBox fx:id="scheduleSubMenu" spacing="2" managed="false" visible="false">
+            <!-- Students Sub-menu (initially hidden) -->
+            <VBox fx:id="studentsSubMenu" spacing="2" managed="false" visible="false">
                 <padding>
                     <Insets left="15"/>
                 </padding>
-                <Button fx:id="calendarBtn" text="📆 Calendar View" onAction="#onShowCalendar" 
+                <Button fx:id="studentListBtn" text="→ Student List" onAction="#onShowStudents" 
                         maxWidth="Infinity" styleClass="sidebar-button-sub"/>
-                <Button fx:id="studentScheduleBtn" text="👤 Student Schedule" onAction="#onShowStudentSchedule" 
-                        maxWidth="Infinity" styleClass="sidebar-button-sub"/>
-                <Button fx:id="courseScheduleBtn" text="📚 Course Schedule" onAction="#onShowCourseSchedule" 
-                        maxWidth="Infinity" styleClass="sidebar-button-sub"/>
-                <Button fx:id="classroomScheduleBtn" text="🏛️ Classroom Schedule" onAction="#onShowClassroomSchedule" 
+                <Button fx:id="studentScheduleBtn" text="→ Student Schedule" onAction="#onShowStudentSchedule" 
                         maxWidth="Infinity" styleClass="sidebar-button-sub"/>
             </VBox>
+            
+            <Button fx:id="coursesBtn" text="• Courses" onAction="#onToggleCoursesMenu" 
+                    maxWidth="Infinity" styleClass="sidebar-button" disable="true"/>
+            
+            <!-- Courses Sub-menu (initially hidden) -->
+            <VBox fx:id="coursesSubMenu" spacing="2" managed="false" visible="false">
+                <padding>
+                    <Insets left="15"/>
+                </padding>
+                <Button fx:id="courseListBtn" text="→ Course List" onAction="#onShowCourses" 
+                        maxWidth="Infinity" styleClass="sidebar-button-sub"/>
+                <Button fx:id="courseScheduleBtn" text="→ Course Schedule" onAction="#onShowCourseSchedule" 
+                        maxWidth="Infinity" styleClass="sidebar-button-sub"/>
+            </VBox>
+            
+            <Button fx:id="classroomsBtn" text="• Classrooms" onAction="#onToggleClassroomsMenu" 
+                    maxWidth="Infinity" styleClass="sidebar-button" disable="true"/>
+            
+            <!-- Classrooms Sub-menu (initially hidden) -->
+            <VBox fx:id="classroomsSubMenu" spacing="2" managed="false" visible="false">
+                <padding>
+                    <Insets left="15"/>
+                </padding>
+                <Button fx:id="classroomListBtn" text="→ Classroom List" onAction="#onShowClassrooms" 
+                        maxWidth="Infinity" styleClass="sidebar-button-sub"/>
+                <Button fx:id="classroomScheduleBtn" text="→ Classroom Schedule" onAction="#onShowClassroomSchedule" 
+                        maxWidth="Infinity" styleClass="sidebar-button-sub"/>
+            </VBox>
+            
+            <Button fx:id="scheduleBtn" text="• Schedule" onAction="#onShowCalendar" 
+                    maxWidth="Infinity" styleClass="sidebar-button" disable="true"/>
             
             <Region VBox.vgrow="ALWAYS"/>
             

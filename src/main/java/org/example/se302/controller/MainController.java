@@ -38,17 +38,31 @@ public class MainController {
     @FXML
     private Button scheduleBtn;
 
+    // Sub-menus
     @FXML
-    private VBox scheduleSubMenu;
+    private VBox studentsSubMenu;
 
     @FXML
-    private Button calendarBtn;
+    private VBox coursesSubMenu;
+
+    @FXML
+    private VBox classroomsSubMenu;
+
+    // Sub-menu buttons
+    @FXML
+    private Button studentListBtn;
 
     @FXML
     private Button studentScheduleBtn;
 
     @FXML
+    private Button courseListBtn;
+
+    @FXML
     private Button courseScheduleBtn;
+
+    @FXML
+    private Button classroomListBtn;
 
     @FXML
     private Button classroomScheduleBtn;
@@ -61,7 +75,11 @@ public class MainController {
 
     private DataManager dataManager;
     private boolean isDarkMode = false;
-    private boolean scheduleMenuOpen = false;
+
+    // Track which sub-menus are open
+    private boolean studentsMenuOpen = false;
+    private boolean coursesMenuOpen = false;
+    private boolean classroomsMenuOpen = false;
 
     // Cached views
     private Node importView;
@@ -174,43 +192,81 @@ public class MainController {
         showView(importView, importBtn);
     }
 
-    @FXML
-    private void onShowStudents() {
-        showView(studentsView, studentsBtn);
-    }
-
-    @FXML
-    private void onShowCourses() {
-        showView(coursesView, coursesBtn);
-    }
-
-    @FXML
-    private void onShowClassrooms() {
-        showView(classroomsView, classroomsBtn);
-    }
-
     /**
-     * Toggle schedule submenu visibility and show Calendar View by default
+     * Toggle students submenu visibility
      */
     @FXML
-    private void onToggleScheduleMenu() {
-        if (!scheduleMenuOpen) {
-            // First time opening - show Calendar View and expand submenu
-            scheduleMenuOpen = true;
-            scheduleSubMenu.setVisible(true);
-            scheduleSubMenu.setManaged(true);
-            showView(calendarView, calendarBtn);
+    private void onToggleStudentsMenu() {
+        if (!studentsMenuOpen) {
+            studentsMenuOpen = true;
+            studentsSubMenu.setVisible(true);
+            studentsSubMenu.setManaged(true);
+            // Show student list by default when opening
+            showView(studentsView, studentListBtn);
         } else {
-            // Toggle submenu visibility
-            scheduleMenuOpen = false;
-            scheduleSubMenu.setVisible(false);
-            scheduleSubMenu.setManaged(false);
+            studentsMenuOpen = false;
+            studentsSubMenu.setVisible(false);
+            studentsSubMenu.setManaged(false);
         }
     }
 
     @FXML
+    private void onShowStudents() {
+        showView(studentsView, studentListBtn);
+    }
+
+    /**
+     * Toggle courses submenu visibility
+     */
+    @FXML
+    private void onToggleCoursesMenu() {
+        if (!coursesMenuOpen) {
+            coursesMenuOpen = true;
+            coursesSubMenu.setVisible(true);
+            coursesSubMenu.setManaged(true);
+            // Show course list by default when opening
+            showView(coursesView, courseListBtn);
+        } else {
+            coursesMenuOpen = false;
+            coursesSubMenu.setVisible(false);
+            coursesSubMenu.setManaged(false);
+        }
+    }
+
+    @FXML
+    private void onShowCourses() {
+        showView(coursesView, courseListBtn);
+    }
+
+    /**
+     * Toggle classrooms submenu visibility
+     */
+    @FXML
+    private void onToggleClassroomsMenu() {
+        if (!classroomsMenuOpen) {
+            classroomsMenuOpen = true;
+            classroomsSubMenu.setVisible(true);
+            classroomsSubMenu.setManaged(true);
+            // Show classroom list by default when opening
+            showView(classroomsView, classroomListBtn);
+        } else {
+            classroomsMenuOpen = false;
+            classroomsSubMenu.setVisible(false);
+            classroomsSubMenu.setManaged(false);
+        }
+    }
+
+    @FXML
+    private void onShowClassrooms() {
+        showView(classroomsView, classroomListBtn);
+    }
+
+    /**
+     * Show Calendar View directly when Schedule is clicked
+     */
+    @FXML
     private void onShowCalendar() {
-        showView(calendarView, calendarBtn);
+        showView(calendarView, scheduleBtn);
     }
 
     @FXML

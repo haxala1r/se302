@@ -622,18 +622,20 @@
 /* ===== Sidebar Navigation ===== */
 .sidebar-button {
     -fx-background-color: transparent;
-    -fx-text-fill: rgba(255, 255, 255, 0.8);
-    -fx-font-size: 13px;
-    -fx-font-weight: 600;
-    -fx-padding: 12 16;
-    -fx-background-radius: 8;
-    -fx-border-radius: 8;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-text-fill: rgba(255, 255, 255, 0.75);
+    -fx-font-size: 15px;
+    -fx-font-weight: 500;
+    -fx-padding: 10 4;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
     -fx-alignment: CENTER_LEFT;
     -fx-cursor: hand;
 }
 
 .sidebar-button:hover {
-    -fx-background-color: rgba(255, 255, 255, 0.1);
+    -fx-background-color: transparent;
     -fx-text-fill: white;
 }
 
@@ -643,33 +645,37 @@
 }
 
 .sidebar-button-active {
-    -fx-background-color: rgba(255, 255, 255, 0.15);
-    -fx-text-fill: white;
-    -fx-border-color: rgba(255, 255, 255, 0.3);
-    -fx-border-width: 0 0 0 3;
+    -fx-background-color: transparent;
+    -fx-text-fill: #5eead4;
+    -fx-font-weight: 600;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
 }
 
 /* Sidebar Sub-buttons (indented) */
 .sidebar-button-sub {
     -fx-background-color: transparent;
-    -fx-text-fill: rgba(255, 255, 255, 0.7);
-    -fx-font-size: 12px;
-    -fx-font-weight: 500;
-    -fx-padding: 8 12;
-    -fx-background-radius: 6;
-    -fx-border-radius: 6;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-text-fill: rgba(255, 255, 255, 0.6);
+    -fx-font-size: 13px;
+    -fx-font-weight: 400;
+    -fx-padding: 6 4;
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
     -fx-alignment: CENTER_LEFT;
     -fx-cursor: hand;
 }
 
 .sidebar-button-sub:hover {
-    -fx-background-color: rgba(255, 255, 255, 0.08);
+    -fx-background-color: transparent;
     -fx-text-fill: white;
 }
 
 .sidebar-button-sub.sidebar-button-active {
-    -fx-background-color: rgba(79, 70, 229, 0.3);
-    -fx-text-fill: white;
-    -fx-border-color: #6366F1;
-    -fx-border-width: 0 0 0 2;
+    -fx-background-color: transparent;
+    -fx-text-fill: #5eead4;
+    -fx-font-weight: 500;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
 }
