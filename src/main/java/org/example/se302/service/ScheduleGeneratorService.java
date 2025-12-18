@@ -25,6 +25,7 @@ public class ScheduleGeneratorService {
 
     /**
      * Generate an exam schedule based on configuration.
+     * Uses multi-restart optimization to find the best schedule among multiple attempts.
      */
     public ScheduleResult generateSchedule(ScheduleConfiguration config) {
         cancelled.set(false);
@@ -38,28 +39,71 @@ public class ScheduleGeneratorService {
             return ScheduleResult.failure("No classrooms available");
         }
 
-        // Create schedule state
-        ScheduleState scheduleState = initializeScheduleState(config);
-
         // Get courses ordered by MRV heuristic
         List<Course> coursesToSchedule = getCoursesOrderedByMRV();
 
-        // Report progress
-        updateProgress(0, coursesToSchedule.size(), "Starting schedule generation...");
+        // Multi-restart optimization: try multiple schedules and pick the best
+        int numRestarts = 5; // Generate 5 different schedules
+        ScheduleState bestSchedule = null;
+        double bestScore = Double.MAX_VALUE;
+        int successfulAttempts = 0;
 
-        // Start backtracking
-        boolean success = backtrack(scheduleState, coursesToSchedule, 0, config);
+        updateProgress(0, numRestarts, "Generating schedules (multi-restart optimization)...");
+
+        for (int attempt = 0; attempt < numRestarts; attempt++) {
+            if (cancelled.get()) {
+                return ScheduleResult.cancelled();
+            }
+
+            // Create fresh schedule state for this attempt
+            ScheduleState scheduleState = initializeScheduleState(config);
+
+            updateProgress(attempt, numRestarts,
+                    String.format("Attempt %d/%d: Starting backtracking...", attempt + 1, numRestarts));
+
+            // Randomize search order slightly for diversity
+            List<Course> shuffledCourses = new ArrayList<>(coursesToSchedule);
+            if (attempt > 0) {
+                // Keep MRV heuristic but add small random perturbation
+                shuffledCourses = perturbCourseOrder(shuffledCourses, attempt);
+            }
+
+            // Run backtracking
+            boolean success = backtrack(scheduleState, shuffledCourses, 0, config);
+
+            if (success) {
+                successfulAttempts++;
+
+                // Evaluate this schedule using objective function
+                double score = ScheduleObjective.evaluateSchedule(scheduleState, config, dataManager);
+
+                updateProgress(attempt + 1, numRestarts,
+                        String.format("Attempt %d/%d: Found schedule (score: %.1f, best: %.1f)",
+                                attempt + 1, numRestarts, score, bestScore));
+
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestSchedule = scheduleState.copy();
+                }
+            } else {
+                updateProgress(attempt + 1, numRestarts,
+                        String.format("Attempt %d/%d: No valid schedule", attempt + 1, numRestarts));
+            }
+        }
 
         if (cancelled.get()) {
             return ScheduleResult.cancelled();
         }
 
-        if (success) {
-            updateProgress(coursesToSchedule.size(), coursesToSchedule.size(), "Schedule generated successfully!");
-            return ScheduleResult.success(scheduleState);
+        if (bestSchedule != null) {
+            updateProgress(numRestarts, numRestarts,
+                    String.format("Complete! Best schedule: score %.1f (%d/%d attempts succeeded)",
+                            bestScore, successfulAttempts, numRestarts));
+            return ScheduleResult.success(bestSchedule);
         } else {
-            return ScheduleResult
-                    .failure("No valid schedule found. Try increasing days/slots or relaxing constraints.");
+            return ScheduleResult.failure(
+                    "No valid schedule found in " + numRestarts + " attempts. " +
+                            "Try increasing days/slots or relaxing constraints.");
         }
     }
 
@@ -69,8 +113,14 @@ public class ScheduleGeneratorService {
     private ScheduleState initializeScheduleState(ScheduleConfiguration config) {
         ScheduleState state = new ScheduleState();
 
+        // CRITICAL: Set configuration so ScheduleState knows about days/slots
+        state.setConfiguration(config);
+
         // Set available classrooms
         state.setAvailableClassrooms(new ArrayList<>(dataManager.getClassrooms()));
+
+        // Set available time slots based on configuration
+        state.setAvailableTimeSlots(config.generateTimeSlots());
 
         // Initialize exam assignments for all courses (unassigned)
         for (Course course : dataManager.getCourses()) {
@@ -163,6 +213,29 @@ public class ScheduleGeneratorService {
     }
 
     /**
+     * Add small random perturbation to course order while preserving MRV bias.
+     * This creates diverse schedules for multi-restart optimization.
+     *
+     * @param courses Original course list
+     * @param seed    Seed for deterministic randomization
+     * @return Perturbed course list
+     */
+    private List<Course> perturbCourseOrder(List<Course> courses, int seed) {
+        Random random = new Random(seed * 1000L); // Deterministic seed for reproducibility
+        List<Course> perturbed = new ArrayList<>(courses);
+
+        // Swap 2-3 random pairs (limited perturbation maintains MRV benefits)
+        int swaps = 2 + random.nextInt(2);
+        for (int i = 0; i < swaps && perturbed.size() > 1; i++) {
+            int idx1 = random.nextInt(perturbed.size());
+            int idx2 = random.nextInt(perturbed.size());
+            Collections.swap(perturbed, idx1, idx2);
+        }
+
+        return perturbed;
+    }
+
+    /**
      * Get time slots ordered by optimization strategy.
      */
     private List<DaySlotPair> getTimeSlotsOrderedByStrategy(ScheduleConfiguration config, ScheduleState scheduleState) {
@@ -175,24 +248,30 @@ public class ScheduleGeneratorService {
             }
         }
 
-        // Order based on strategy
+        // Order based on strategy (deprecated strategies handled in ScheduleObjective)
         switch (config.getOptimizationStrategy()) {
             case MINIMIZE_DAYS:
                 // Already in order (day 0 slot 0, day 0 slot 1, ... day 1 slot 0, ...)
                 // This fills earlier days first
                 break;
 
-            case BALANCED_DISTRIBUTION:
-                // Round-robin across days: day 0 slot 0, day 1 slot 0, day 2 slot 0, ... day 0
-                // slot 1, ...
-                timeSlots.sort(Comparator.comparingInt((DaySlotPair p) -> p.slot)
-                        .thenComparingInt(p -> p.day));
-                break;
-
             case STUDENT_FRIENDLY:
-                // Try to space out exams - prefer later slots on same day to avoid consecutive
-                // (This is a simple heuristic - more sophisticated would track student
-                // conflicts)
+                // Fill each day completely before moving to next day
+                // Within each day, prefer middle slots (avoid early morning)
+                // Priority: slots 1 and 2 (middle of day) over slots 0 (early) and 3 (late)
+                timeSlots.sort((p1, p2) -> {
+                    // Primary: sort by day (fill Day 0 first, then Day 1, etc.)
+                    int dayCompare = Integer.compare(p1.day, p2.day);
+                    if (dayCompare != 0)
+                        return dayCompare;
+
+                    // Secondary: within same day, prefer middle slots
+                    // Slot priority order: 1 (best), 2 (good), 0 (early morning), 3 (late afternoon)
+                    int[] slotPriority = { 2, 0, 1, 3 }; // Maps slot index to priority (lower is better)
+                    int priority1 = p1.slot < slotPriority.length ? slotPriority[p1.slot] : p1.slot;
+                    int priority2 = p2.slot < slotPriority.length ? slotPriority[p2.slot] : p2.slot;
+                    return Integer.compare(priority1, priority2);
+                });
                 break;
 
             default:
@@ -237,7 +316,7 @@ public class ScheduleGeneratorService {
             }
         }
 
-        // Order based on strategy
+        // Order based on strategy (deprecated strategies handled in ScheduleObjective)
         switch (config.getOptimizationStrategy()) {
             case MINIMIZE_CLASSROOMS:
                 // Prefer classrooms that are already in use (reuse same classrooms)
@@ -249,19 +328,26 @@ public class ScheduleGeneratorService {
                 });
                 break;
 
-            case BALANCE_CLASSROOMS:
-                // Prefer classrooms that are least used
+            default:
+                // DEFAULT: Use round-robin to force distribution across classrooms
+                // Always prefer least-used classrooms to ensure multiple classrooms get used
                 suitable.sort((c1, c2) -> {
                     int usage1 = getClassroomUsageCount(c1.getClassroomId(), scheduleState);
                     int usage2 = getClassroomUsageCount(c2.getClassroomId(), scheduleState);
-                    // Sort ascending (least used first)
-                    return Integer.compare(usage1, usage2);
-                });
-                break;
 
-            default:
-                // DEFAULT or others: prefer smaller classrooms that fit (efficient space usage)
-                suitable.sort(Comparator.comparingInt(Classroom::getCapacity));
+                    // Primary: prefer least-used classrooms
+                    int usageCompare = Integer.compare(usage1, usage2);
+                    if (usageCompare != 0)
+                        return usageCompare;
+
+                    // Tiebreaker: prefer smaller capacity (efficient space usage)
+                    int capacityCompare = Integer.compare(c1.getCapacity(), c2.getCapacity());
+                    if (capacityCompare != 0)
+                        return capacityCompare;
+
+                    // Final tiebreaker: classroom ID (deterministic)
+                    return c1.getClassroomId().compareTo(c2.getClassroomId());
+                });
                 break;
         }
 

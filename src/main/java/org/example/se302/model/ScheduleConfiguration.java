@@ -26,24 +26,36 @@ public class ScheduleConfiguration {
 
     /**
      * Optimization strategies for the scheduling algorithm.
+     *
+     * <p>Active Strategies:</p>
+     * <ul>
+     *   <li>STUDENT_FRIENDLY - Minimize gaps, enforce constraints (DEFAULT)</li>
+     *   <li>MINIMIZE_DAYS - Pack exams into fewest days</li>
+     *   <li>MINIMIZE_CLASSROOMS - Use fewest classrooms</li>
+     * </ul>
+     *
+     * <p>Deprecated strategies are maintained for backward compatibility only.</p>
      */
     public enum OptimizationStrategy {
-        /** Minimize total number of days used - pack exams into fewest days */
+        /** Pack exams into fewest days possible */
         MINIMIZE_DAYS,
 
-        /** Spread exams evenly across days - balanced distribution */
-        BALANCED_DISTRIBUTION,
-
-        /** Minimize number of classrooms used - reuse same classrooms */
+        /** Use fewest classrooms possible */
         MINIMIZE_CLASSROOMS,
 
-        /** Balance classroom usage across days - even distribution */
-        BALANCE_CLASSROOMS,
-
-        /** Minimize consecutive exams for students (bonus strategy) */
+        /** Minimize gaps, enforce student-friendly constraints (DEFAULT) */
         STUDENT_FRIENDLY,
 
-        /** Default balanced approach */
+        /** @deprecated Use STUDENT_FRIENDLY instead. Balanced distribution conflicts with minimize days. */
+        @Deprecated
+        BALANCED_DISTRIBUTION,
+
+        /** @deprecated Use MINIMIZE_CLASSROOMS instead. Balance classrooms conflicts with minimize classrooms. */
+        @Deprecated
+        BALANCE_CLASSROOMS,
+
+        /** @deprecated Use STUDENT_FRIENDLY instead. This is now the default behavior. */
+        @Deprecated
         DEFAULT
     }
 
@@ -76,9 +88,9 @@ public class ScheduleConfiguration {
         this.slotDurationMinutes = 120; // 2 hours
         this.dayStartTime = LocalTime.of(9, 0); // 09:00
         this.breakBetweenSlotsMinutes = 30; // 30 minute break
-        this.optimizationStrategy = OptimizationStrategy.DEFAULT;
-        this.allowBackToBackExams = true;
-        this.maxExamsPerDay = 0; // 0 = no limit
+        this.optimizationStrategy = OptimizationStrategy.STUDENT_FRIENDLY; // Student-friendly by default
+        this.allowBackToBackExams = false; // Enforce no consecutive exams by default
+        this.maxExamsPerDay = 2; // Enforce max 2 exams per day by default
         this.timeoutMs = 60000; // 60 seconds
         this.useHeuristics = true;
     }

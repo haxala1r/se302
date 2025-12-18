@@ -105,8 +105,8 @@ public class ScheduleCalendarController {
         // Set default date to next week
         startDatePicker.setValue(LocalDate.now().plusDays(7));
 
-        // Set default checkbox - allow back-to-back for easier scheduling
-        allowBackToBackCheckBox.setSelected(true);
+        // Set default checkbox - student-friendly (no back-to-back exams)
+        allowBackToBackCheckBox.setSelected(false);
 
         // Add listeners to update summary
         numDaysSpinner.valueProperty().addListener((obs, oldVal, newVal) -> updateSummary());
@@ -135,16 +135,13 @@ public class ScheduleCalendarController {
     }
 
     private void initializeComboBoxes() {
-        // Optimization strategies
+        // Optimization strategies - consolidated to 3 meaningful options
         List<String> strategies = Arrays.asList(
-                "Default (Balanced)",
+                "Student Friendly (Default)",
                 "Minimize Days",
-                "Balanced Distribution",
-                "Minimize Classrooms",
-                "Balance Classrooms",
-                "Student Friendly");
+                "Minimize Classrooms");
         strategyComboBox.setItems(FXCollections.observableArrayList(strategies));
-        strategyComboBox.getSelectionModel().selectFirst();
+        strategyComboBox.getSelectionModel().selectFirst(); // Default: Student Friendly
 
         // Start times (8:00 - 14:00)
         List<String> times = Arrays.asList(
@@ -236,22 +233,17 @@ public class ScheduleCalendarController {
             config.setDayStartTime(LocalTime.of(Integer.parseInt(parts[0]), Integer.parseInt(parts[1])));
         }
 
-        // Set optimization strategy
+        // Set optimization strategy (consolidated to 3 options)
         String strategyStr = strategyComboBox.getValue();
-        ScheduleConfiguration.OptimizationStrategy strategy = ScheduleConfiguration.OptimizationStrategy.DEFAULT;
+        ScheduleConfiguration.OptimizationStrategy strategy = ScheduleConfiguration.OptimizationStrategy.STUDENT_FRIENDLY;
 
         if (strategyStr != null) {
             if (strategyStr.contains("Minimize Days")) {
                 strategy = ScheduleConfiguration.OptimizationStrategy.MINIMIZE_DAYS;
-            } else if (strategyStr.contains("Balanced Distribution")) {
-                strategy = ScheduleConfiguration.OptimizationStrategy.BALANCED_DISTRIBUTION;
             } else if (strategyStr.contains("Minimize Classrooms")) {
                 strategy = ScheduleConfiguration.OptimizationStrategy.MINIMIZE_CLASSROOMS;
-            } else if (strategyStr.contains("Balance Classrooms")) {
-                strategy = ScheduleConfiguration.OptimizationStrategy.BALANCE_CLASSROOMS;
-            } else if (strategyStr.contains("Student Friendly")) {
-                strategy = ScheduleConfiguration.OptimizationStrategy.STUDENT_FRIENDLY;
             }
+            // STUDENT_FRIENDLY is default, no explicit check needed
         }
         config.setOptimizationStrategy(strategy);
 
