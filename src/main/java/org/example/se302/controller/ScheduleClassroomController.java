@@ -13,6 +13,7 @@ import javafx.scene.control.TableView;
 import org.example.se302.model.Classroom;
 import org.example.se302.model.Course;
 import org.example.se302.model.ScheduleConfiguration;
+import org.example.se302.model.TimeSlot;
 import org.example.se302.service.DataManager;
 
 import java.time.LocalDate;
@@ -170,7 +171,18 @@ public class ScheduleClassroomController {
                                         dateStr = "Day " + (dayIndex + 1);
                                 }
 
-                                String timeStr = "Slot " + (slotIndex + 1);
+                                // Format time
+                                String timeStr;
+                                if (config != null) {
+                                        TimeSlot timeSlot = config.getTimeSlot(dayIndex, slotIndex);
+                                        if (timeSlot != null) {
+                                                timeStr = timeSlot.getStartTime() + " - " + timeSlot.getEndTime();
+                                        } else {
+                                                timeStr = "Slot " + (slotIndex + 1);
+                                        }
+                                } else {
+                                        timeStr = "Slot " + (slotIndex + 1);
+                                }
 
                                 // Calculate utilization
                                 int studentCount = course.getEnrolledStudentsCount();
