@@ -9,14 +9,12 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import org.example.se302.model.Course;
-import org.example.se302.model.ExamAssignment;
 import org.example.se302.model.ScheduleConfiguration;
 import org.example.se302.service.DataManager;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
-import java.util.Map;
 
 // Color palette for days (pastel colors for readability)
 // Day 0 = Light Blue, Day 1 = Light Green, Day 2 = Light Yellow, etc.
@@ -42,11 +40,6 @@ public class ScheduleCourseController {
         private TableColumn<CourseScheduleEntry, String> classroomColumn;
 
         private DataManager dataManager;
-
-        // Reference to the current schedule state (set by parent controller or loaded
-        // from DB)
-        private Map<String, ExamAssignment> currentAssignments;
-        private ScheduleConfiguration configuration;
 
         @FXML
         public void initialize() {
@@ -122,19 +115,38 @@ public class ScheduleCourseController {
                 // Listen for data changes
                 dataManager.getCourses().addListener(
                                 (javafx.collections.ListChangeListener<Course>) c -> loadScheduleData());
-        }
 
-        /**
-         * Sets the current schedule assignments. Called by parent controller after
-         * schedule generation.
-         */
-        public void setScheduleData(Map<String, ExamAssignment> assignments, ScheduleConfiguration config) {
-                this.currentAssignments = assignments;
-                this.configuration = config;
-                loadScheduleData();
+                // Refresh when tab is selected - find TabPane once scene is available
+                courseScheduleTable.sceneProperty().addListener((obs, oldScene, newScene) -> {
+                        if (newScene != null) {
+                                loadScheduleData();
+                                // Find parent TabPane and listen for selection changes
+                                javafx.scene.Parent parent = courseScheduleTable.getParent();
+                                while (parent != null) {
+                                        if (parent.getParent() instanceof javafx.scene.control.TabPane) {
+                                                javafx.scene.control.TabPane tabPane = (javafx.scene.control.TabPane) parent
+                                                                .getParent();
+                                                // Find which tab contains our content
+                                                for (javafx.scene.control.Tab tab : tabPane.getTabs()) {
+                                                        if (tab.getContent() == parent) {
+                                                                tab.selectedProperty().addListener(
+                                                                                (o, wasSelected, isSelected) -> {
+                                                                                        if (isSelected)
+                                                                                                loadScheduleData();
+                                                                                });
+                                                                break;
+                                                        }
+                                                }
+                                                break;
+                                        }
+                                        parent = parent.getParent();
+                                }
+                        }
+                });
         }
 
         private void loadScheduleData() {
+                ScheduleConfiguration config = dataManager.getActiveConfiguration();
                 ObservableList<CourseScheduleEntry> entries = FXCollections.observableArrayList();
 
                 for (Course course : dataManager.getCourses()) {
@@ -144,33 +156,24 @@ public class ScheduleCourseController {
                         String dateStr = "Not Scheduled";
                         String timeStr = "-";
                         String classroomStr = "-";
-                        int dayIndex = Integer.MAX_VALUE; // For sorting unscheduled items last
+                        int dayIndex = Integer.MAX_VALUE;
                         int slotIndex = Integer.MAX_VALUE;
 
-                        // Check if we have an assignment for this course
-                        if (currentAssignments != null && currentAssignments.containsKey(courseCode)) {
-                                ExamAssignment assignment = currentAssignments.get(courseCode);
+                        // Check if this course has been scheduled
+                        if (course.isScheduled()) {
+                                dayIndex = course.getExamDay();
+                                slotIndex = course.getExamTimeSlot();
+                                classroomStr = course.getAssignedClassroom();
 
-                                if (assignment.isAssigned()) {
-                                        dayIndex = assignment.getDay();
-                                        slotIndex = assignment.getTimeSlotIndex();
-
-                                        // Format date based on configuration start date + day offset
-                                        if (configuration != null && configuration.getStartDate() != null) {
-                                                LocalDate examDate = configuration.getStartDate().plusDays(dayIndex);
-                                                dateStr = examDate.format(
-                                                                DateTimeFormatter.ofPattern("dd/MM/yyyy (EEEE)"));
-                                        } else {
-                                                dateStr = "Day " + (dayIndex + 1);
-                                        }
-
-                                        // Format time slot
-                                        timeStr = "Slot " + (slotIndex + 1);
-
-                                        // Classroom
-                                        classroomStr = assignment.getClassroomId() != null ? assignment.getClassroomId()
-                                                        : "-";
+                                // Format date using configuration's start date
+                                if (config != null && config.getStartDate() != null) {
+                                        LocalDate examDate = config.getStartDate().plusDays(dayIndex);
+                                        dateStr = examDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy (EEEE)"));
+                                } else {
+                                        dateStr = "Day " + (dayIndex + 1);
                                 }
+
+                                timeStr = "Slot " + (slotIndex + 1);
                         }
 
                         entries.add(new CourseScheduleEntry(courseCode, enrolled, dateStr, timeStr, classroomStr,

@@ -11,14 +11,13 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import org.example.se302.model.Classroom;
-import org.example.se302.model.ExamAssignment;
+import org.example.se302.model.Course;
 import org.example.se302.model.ScheduleConfiguration;
 import org.example.se302.service.DataManager;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
-import java.util.Map;
 
 /**
  * Controller for the Classroom Schedule view.
@@ -46,10 +45,6 @@ public class ScheduleClassroomController {
         private Label utilizationLabel;
 
         private DataManager dataManager;
-
-        // Reference to the current schedule state (set by parent controller)
-        private Map<String, ExamAssignment> currentAssignments;
-        private ScheduleConfiguration configuration;
 
         @FXML
         public void initialize() {
@@ -112,15 +107,35 @@ public class ScheduleClassroomController {
                                 }
                         }
                 });
-        }
 
-        /**
-         * Sets the current schedule assignments. Called by parent controller after
-         * schedule generation.
-         */
-        public void setScheduleData(Map<String, ExamAssignment> assignments, ScheduleConfiguration config) {
-                this.currentAssignments = assignments;
-                this.configuration = config;
+                // Refresh when tab is selected - find TabPane once scene is available
+                scheduleTable.sceneProperty().addListener((obs, oldScene, newScene) -> {
+                        if (newScene != null) {
+                                // Find parent TabPane and listen for selection changes
+                                javafx.scene.Parent parent = scheduleTable.getParent();
+                                while (parent != null) {
+                                        if (parent.getParent() instanceof javafx.scene.control.TabPane) {
+                                                javafx.scene.control.TabPane tabPane = (javafx.scene.control.TabPane) parent
+                                                                .getParent();
+                                                // Find which tab contains our content
+                                                for (javafx.scene.control.Tab tab : tabPane.getTabs()) {
+                                                        if (tab.getContent() == parent) {
+                                                                tab.selectedProperty().addListener(
+                                                                                (o, wasSelected, isSelected) -> {
+                                                                                        if (isSelected && classroomComboBox
+                                                                                                        .getValue() != null) {
+                                                                                                onShowSchedule();
+                                                                                        }
+                                                                                });
+                                                                break;
+                                                        }
+                                                }
+                                                break;
+                                        }
+                                        parent = parent.getParent();
+                                }
+                        }
+                });
         }
 
         @FXML
@@ -132,50 +147,50 @@ public class ScheduleClassroomController {
                 selectedClassroomLabel.setText("Schedule for: " + selected.getClassroomId() +
                                 " (Capacity: " + selected.getCapacity() + ")");
 
+                ScheduleConfiguration config = dataManager.getActiveConfiguration();
                 ObservableList<ClassroomSlotEntry> entries = FXCollections.observableArrayList();
                 int totalSlots = 0;
                 int usedSlots = 0;
                 int totalStudents = 0;
 
-                // If we have assignments, filter by this classroom
-                if (currentAssignments != null && !currentAssignments.isEmpty()) {
-                        for (ExamAssignment assignment : currentAssignments.values()) {
-                                if (assignment.isAssigned() &&
-                                                selected.getClassroomId().equals(assignment.getClassroomId())) {
+                // Find all courses scheduled in this classroom
+                for (Course course : dataManager.getCourses()) {
+                        if (course.isScheduled() &&
+                                        selected.getClassroomId().equals(course.getAssignedClassroom())) {
 
-                                        // Format date
-                                        String dateStr;
-                                        if (configuration != null && configuration.getStartDate() != null) {
-                                                LocalDate examDate = configuration.getStartDate()
-                                                                .plusDays(assignment.getDay());
-                                                dateStr = examDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-                                        } else {
-                                                dateStr = "Day " + (assignment.getDay() + 1);
-                                        }
+                                int dayIndex = course.getExamDay();
+                                int slotIndex = course.getExamTimeSlot();
 
-                                        // Format time
-                                        String timeStr = "Slot " + (assignment.getTimeSlotIndex() + 1);
-
-                                        // Calculate utilization percentage for this slot
-                                        int studentCount = assignment.getStudentCount();
-                                        int capacity = selected.getCapacity();
-                                        int utilizationPercent = capacity > 0 ? (studentCount * 100) / capacity : 0;
-                                        String utilizationStr = utilizationPercent + "%";
-
-                                        entries.add(new ClassroomSlotEntry(
-                                                        dateStr, timeStr, assignment.getCourseCode(),
-                                                        studentCount, utilizationStr, utilizationPercent,
-                                                        assignment.getDay(), assignment.getTimeSlotIndex()));
-
-                                        usedSlots++;
-                                        totalStudents += studentCount;
+                                // Format date
+                                String dateStr;
+                                if (config != null && config.getStartDate() != null) {
+                                        LocalDate examDate = config.getStartDate().plusDays(dayIndex);
+                                        dateStr = examDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                                } else {
+                                        dateStr = "Day " + (dayIndex + 1);
                                 }
-                        }
 
-                        // Calculate total possible slots
-                        if (configuration != null) {
-                                totalSlots = configuration.getNumDays() * configuration.getSlotsPerDay();
+                                String timeStr = "Slot " + (slotIndex + 1);
+
+                                // Calculate utilization
+                                int studentCount = course.getEnrolledStudentsCount();
+                                int capacity = selected.getCapacity();
+                                int utilizationPercent = capacity > 0 ? (studentCount * 100) / capacity : 0;
+                                String utilizationStr = utilizationPercent + "%";
+
+                                entries.add(new ClassroomSlotEntry(
+                                                dateStr, timeStr, course.getCourseCode(),
+                                                studentCount, utilizationStr, utilizationPercent,
+                                                dayIndex, slotIndex));
+
+                                usedSlots++;
+                                totalStudents += studentCount;
                         }
+                }
+
+                // Calculate total possible slots
+                if (config != null) {
+                        totalSlots = config.getNumDays() * config.getSlotsPerDay();
                 }
 
                 // Sort by day then slot
