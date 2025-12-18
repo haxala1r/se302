@@ -151,51 +151,46 @@ public class ScheduleCourseController {
                 ObservableList<CourseScheduleEntry> entries = FXCollections.observableArrayList();
 
                 for (Course course : dataManager.getCourses()) {
-                        String courseCode = course.getCourseCode();
-                        int enrolled = course.getEnrolledStudentsCount();
-
                         String dateStr = "Not Scheduled";
                         String timeStr = "-";
                         String classroomStr = "-";
                         int dayIndex = Integer.MAX_VALUE;
                         int slotIndex = Integer.MAX_VALUE;
 
-                        // Check if this course has been scheduled
                         if (course.isScheduled()) {
                                 dayIndex = course.getExamDay();
                                 slotIndex = course.getExamTimeSlot();
                                 classroomStr = course.getAssignedClassroom();
-
-                                // Format date using configuration's start date
-                                if (config != null && config.getStartDate() != null) {
-                                        LocalDate examDate = config.getStartDate().plusDays(dayIndex);
-                                        dateStr = examDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy (EEEE)"));
-                                } else {
-                                        dateStr = "Day " + (dayIndex + 1);
-                                }
-
-                                // Format time using configuration's time slots
-                                if (config != null) {
-                                        TimeSlot timeSlot = config.getTimeSlot(dayIndex, slotIndex);
-                                        if (timeSlot != null) {
-                                                timeStr = timeSlot.getStartTime() + " - " + timeSlot.getEndTime();
-                                        } else {
-                                                timeStr = "Slot " + (slotIndex + 1);
-                                        }
-                                } else {
-                                        timeStr = "Slot " + (slotIndex + 1);
-                                }
+                                dateStr = formatDate(config, dayIndex);
+                                timeStr = formatTime(config, dayIndex, slotIndex);
                         }
 
-                        entries.add(new CourseScheduleEntry(courseCode, enrolled, dateStr, timeStr, classroomStr,
+                        entries.add(new CourseScheduleEntry(course.getCourseCode(),
+                                        course.getEnrolledStudentsCount(), dateStr, timeStr, classroomStr,
                                         dayIndex, slotIndex));
                 }
 
-                // Sort by day first, then by slot
                 entries.sort(Comparator.comparingInt(CourseScheduleEntry::getDayIndex)
                                 .thenComparingInt(CourseScheduleEntry::getSlotIndex));
-
                 courseScheduleTable.setItems(entries);
+        }
+
+        private String formatDate(ScheduleConfiguration config, int dayIndex) {
+                if (config != null && config.getStartDate() != null) {
+                        LocalDate examDate = config.getStartDate().plusDays(dayIndex);
+                        return examDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy (EEEE)"));
+                }
+                return "Day " + (dayIndex + 1);
+        }
+
+        private String formatTime(ScheduleConfiguration config, int dayIndex, int slotIndex) {
+                if (config != null) {
+                        TimeSlot slot = config.getTimeSlot(dayIndex, slotIndex);
+                        if (slot != null) {
+                                return slot.getStartTime() + " - " + slot.getEndTime();
+                        }
+                }
+                return "Slot " + (slotIndex + 1);
         }
 
         // Helper class for table entries

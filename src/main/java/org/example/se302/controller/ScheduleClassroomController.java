@@ -150,76 +150,60 @@ public class ScheduleClassroomController {
 
                 ScheduleConfiguration config = dataManager.getActiveConfiguration();
                 ObservableList<ClassroomSlotEntry> entries = FXCollections.observableArrayList();
-                int totalSlots = 0;
                 int usedSlots = 0;
                 int totalStudents = 0;
 
-                // Find all courses scheduled in this classroom
                 for (Course course : dataManager.getCourses()) {
-                        if (course.isScheduled() &&
-                                        selected.getClassroomId().equals(course.getAssignedClassroom())) {
+                        if (!course.isScheduled() || !selected.getClassroomId().equals(course.getAssignedClassroom()))
+                                continue;
 
-                                int dayIndex = course.getExamDay();
-                                int slotIndex = course.getExamTimeSlot();
+                        int dayIndex = course.getExamDay();
+                        int slotIndex = course.getExamTimeSlot();
+                        int studentCount = course.getEnrolledStudentsCount();
+                        int utilization = selected.getCapacity() > 0
+                                        ? (studentCount * 100) / selected.getCapacity()
+                                        : 0;
 
-                                // Format date
-                                String dateStr;
-                                if (config != null && config.getStartDate() != null) {
-                                        LocalDate examDate = config.getStartDate().plusDays(dayIndex);
-                                        dateStr = examDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-                                } else {
-                                        dateStr = "Day " + (dayIndex + 1);
-                                }
+                        entries.add(new ClassroomSlotEntry(
+                                        formatDate(config, dayIndex),
+                                        formatTime(config, dayIndex, slotIndex),
+                                        course.getCourseCode(), studentCount, utilization + "%",
+                                        utilization, dayIndex, slotIndex));
 
-                                // Format time
-                                String timeStr;
-                                if (config != null) {
-                                        TimeSlot timeSlot = config.getTimeSlot(dayIndex, slotIndex);
-                                        if (timeSlot != null) {
-                                                timeStr = timeSlot.getStartTime() + " - " + timeSlot.getEndTime();
-                                        } else {
-                                                timeStr = "Slot " + (slotIndex + 1);
-                                        }
-                                } else {
-                                        timeStr = "Slot " + (slotIndex + 1);
-                                }
-
-                                // Calculate utilization
-                                int studentCount = course.getEnrolledStudentsCount();
-                                int capacity = selected.getCapacity();
-                                int utilizationPercent = capacity > 0 ? (studentCount * 100) / capacity : 0;
-                                String utilizationStr = utilizationPercent + "%";
-
-                                entries.add(new ClassroomSlotEntry(
-                                                dateStr, timeStr, course.getCourseCode(),
-                                                studentCount, utilizationStr, utilizationPercent,
-                                                dayIndex, slotIndex));
-
-                                usedSlots++;
-                                totalStudents += studentCount;
-                        }
+                        usedSlots++;
+                        totalStudents += studentCount;
                 }
 
-                // Calculate total possible slots
-                if (config != null) {
-                        totalSlots = config.getNumDays() * config.getSlotsPerDay();
-                }
-
-                // Sort by day then slot
                 entries.sort(Comparator.comparingInt(ClassroomSlotEntry::getDayIndex)
                                 .thenComparingInt(ClassroomSlotEntry::getSlotIndex));
-
                 scheduleTable.setItems(entries);
 
-                // Update overall utilization label
+                int totalSlots = config != null ? config.getNumDays() * config.getSlotsPerDay() : 0;
                 if (totalSlots > 0) {
-                        int overallUtilization = (usedSlots * 100) / totalSlots;
+                        int overallUtil = (usedSlots * 100) / totalSlots;
                         utilizationLabel.setText(String.format(
                                         "Overall Utilization: %d%% (%d/%d slots used, %d total students)",
-                                        overallUtilization, usedSlots, totalSlots, totalStudents));
+                                        overallUtil, usedSlots, totalSlots, totalStudents));
                 } else {
                         utilizationLabel.setText("Overall Utilization: 0% (No schedule data available)");
                 }
+        }
+
+        private String formatDate(ScheduleConfiguration config, int dayIndex) {
+                if (config != null && config.getStartDate() != null) {
+                        LocalDate examDate = config.getStartDate().plusDays(dayIndex);
+                        return examDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                }
+                return "Day " + (dayIndex + 1);
+        }
+
+        private String formatTime(ScheduleConfiguration config, int dayIndex, int slotIndex) {
+                if (config != null) {
+                        TimeSlot slot = config.getTimeSlot(dayIndex, slotIndex);
+                        if (slot != null)
+                                return slot.getStartTime() + " - " + slot.getEndTime();
+                }
+                return "Slot " + (slotIndex + 1);
         }
 
         // Helper class for table entries

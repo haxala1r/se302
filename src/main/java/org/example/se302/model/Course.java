@@ -4,71 +4,39 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Represents a course in the exam scheduling system.
- * Contains course information and exam scheduling details.
+ * Represents a course with exam scheduling details.
  */
 public class Course {
     private String courseCode;
     private List<String> enrolledStudents;
-
-    // Exam schedule fields (index-based)
-    private int examDay; // -1 if not scheduled, 0-based day index
-    private int examTimeSlot; // -1 if not scheduled, 0-based slot index
-    private String assignedClassroom; // null if not scheduled
-
-    // Legacy field for backward compatibility
-    private String examDateTime; // null if not scheduled (string format)
+    private int examDay = -1;
+    private int examTimeSlot = -1;
+    private String assignedClassroom;
 
     public Course(String courseCode) {
         this.courseCode = courseCode;
         this.enrolledStudents = new ArrayList<>();
-        this.examDay = -1;
-        this.examTimeSlot = -1;
-        this.assignedClassroom = null;
-        this.examDateTime = null;
     }
 
-    /**
-     * Checks if this course has been scheduled for an exam.
-     */
     public boolean isScheduled() {
         return examDay >= 0 && examTimeSlot >= 0 && assignedClassroom != null;
     }
 
-    /**
-     * Clears the exam schedule for this course.
-     */
     public void clearSchedule() {
         this.examDay = -1;
         this.examTimeSlot = -1;
         this.assignedClassroom = null;
-        this.examDateTime = null;
     }
 
-    /**
-     * Sets the complete exam schedule.
-     * 
-     * @param day         Day index (0-based)
-     * @param timeSlot    Time slot index (0-based)
-     * @param classroomId Classroom ID
-     */
     public void setExamSchedule(int day, int timeSlot, String classroomId) {
         this.examDay = day;
         this.examTimeSlot = timeSlot;
         this.assignedClassroom = classroomId;
     }
 
-    /**
-     * Gets a unique key for this course's time slot.
-     */
     public String getTimeSlotKey() {
-        if (!isScheduled()) {
-            return null;
-        }
-        return "D" + examDay + "_S" + examTimeSlot;
+        return isScheduled() ? "D" + examDay + "_S" + examTimeSlot : null;
     }
-
-    // Basic getters and setters
 
     public String getCourseCode() {
         return courseCode;
@@ -82,14 +50,13 @@ public class Course {
         return enrolledStudents;
     }
 
-    public void setEnrolledStudents(List<String> enrolledStudents) {
-        this.enrolledStudents = enrolledStudents;
+    public void setEnrolledStudents(List<String> students) {
+        this.enrolledStudents = students;
     }
 
     public void addStudent(String studentId) {
-        if (!enrolledStudents.contains(studentId)) {
+        if (!enrolledStudents.contains(studentId))
             enrolledStudents.add(studentId);
-        }
     }
 
     public void removeStudent(String studentId) {
@@ -99,8 +66,6 @@ public class Course {
     public int getEnrolledStudentsCount() {
         return enrolledStudents.size();
     }
-
-    // Schedule field getters and setters
 
     public int getExamDay() {
         return examDay;
@@ -114,24 +79,16 @@ public class Course {
         return examTimeSlot;
     }
 
-    public void setExamTimeSlot(int examTimeSlot) {
-        this.examTimeSlot = examTimeSlot;
+    public void setExamTimeSlot(int slot) {
+        this.examTimeSlot = slot;
     }
 
     public String getAssignedClassroom() {
         return assignedClassroom;
     }
 
-    public void setAssignedClassroom(String assignedClassroom) {
-        this.assignedClassroom = assignedClassroom;
-    }
-
-    public String getExamDateTime() {
-        return examDateTime;
-    }
-
-    public void setExamDateTime(String examDateTime) {
-        this.examDateTime = examDateTime;
+    public void setAssignedClassroom(String classroom) {
+        this.assignedClassroom = classroom;
     }
 
     @Override

@@ -105,77 +105,58 @@ public class ScheduleStudentController {
 
         for (String courseCode : student.getEnrolledCourses()) {
             Course course = dataManager.getCourse(courseCode);
-            if (course != null) {
-                String dateStr = "Not Scheduled";
-                String timeStr = "-";
-                String classroom = "-";
-                int dayIndex = -1;
-                int slotIndex = -1;
+            if (course == null)
+                continue;
 
-                if (course.isScheduled()) {
-                    dayIndex = course.getExamDay();
-                    slotIndex = course.getExamTimeSlot();
-                    classroom = course.getAssignedClassroom();
+            String dateStr = "Not Scheduled";
+            String timeStr = "-";
+            String classroom = "-";
+            int dayIndex = -1, slotIndex = -1;
 
-                    if (config != null) {
-                        TimeSlot slot = config.getTimeSlot(dayIndex, slotIndex);
-                        if (slot != null) {
-                            dateStr = slot.getDate().toString(); // YYYY-MM-DD
-                            timeStr = slot.getStartTime().toString() + " - " + slot.getEndTime().toString();
-                        } else {
-                            dateStr = "Day " + (dayIndex + 1);
-                            timeStr = "Slot " + (slotIndex + 1);
-                        }
-                    } else {
-                        // Fallback if no config saved
-                        dateStr = "Day " + (dayIndex + 1);
-                        timeStr = "Slot " + (slotIndex + 1);
-                    }
+            if (course.isScheduled()) {
+                dayIndex = course.getExamDay();
+                slotIndex = course.getExamTimeSlot();
+                classroom = course.getAssignedClassroom();
+
+                TimeSlot slot = config != null ? config.getTimeSlot(dayIndex, slotIndex) : null;
+                if (slot != null) {
+                    dateStr = slot.getDate().toString();
+                    timeStr = slot.getStartTime() + " - " + slot.getEndTime();
+                } else {
+                    dateStr = "Day " + (dayIndex + 1);
+                    timeStr = "Slot " + (slotIndex + 1);
                 }
-
-                entries.add(new CourseScheduleEntry(courseCode, dateStr, timeStr, classroom, dayIndex, slotIndex));
             }
+
+            entries.add(new CourseScheduleEntry(courseCode, dateStr, timeStr, classroom, dayIndex, slotIndex));
         }
 
-        // Sort by day and time
         entries.sort(Comparator.comparingInt(CourseScheduleEntry::getDayIndex)
                 .thenComparingInt(CourseScheduleEntry::getSlotIndex));
-
-        // Analyze for highlights
         analyzeSchedule(entries);
-
         scheduleTable.setItems(FXCollections.observableArrayList(entries));
     }
 
     private void analyzeSchedule(List<CourseScheduleEntry> entries) {
-        if (entries.isEmpty())
-            return;
-
         for (int i = 0; i < entries.size(); i++) {
             CourseScheduleEntry current = entries.get(i);
             if (current.getDayIndex() == -1)
-                continue; // Skip unscheduled
+                continue;
 
-            // Check for multiple exams on same day
-            int examsOnDay = 0;
+            // Check for multiple exams and conflicts on same day
             for (CourseScheduleEntry other : entries) {
                 if (other.getDayIndex() == current.getDayIndex() && other.getDayIndex() != -1) {
-                    examsOnDay++;
+                    current.isMultipleExamsOnDay = true;
                     if (other.getSlotIndex() == current.getSlotIndex() && other != current) {
                         current.hasConflictWarning = true;
                     }
                 }
             }
-            if (examsOnDay > 1) {
-                current.isMultipleExamsOnDay = true;
-            }
 
-            // Check for consecutive days (look at previous scheduled exam)
-            // Since list is sorted, we can look at previous entry if it exists
+            // Check for consecutive days with previous exam
             if (i > 0) {
                 CourseScheduleEntry prev = entries.get(i - 1);
-                if (prev.getDayIndex() != -1 &&
-                        current.getDayIndex() == prev.getDayIndex() + 1) {
+                if (prev.getDayIndex() != -1 && current.getDayIndex() == prev.getDayIndex() + 1) {
                     current.isConsecutiveDay = true;
                 }
             }
