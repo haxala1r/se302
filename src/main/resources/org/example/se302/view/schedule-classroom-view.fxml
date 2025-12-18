@@ -19,6 +19,7 @@
                 <Label text="Select Classroom:"/>
                 <ComboBox fx:id="classroomComboBox" promptText="Choose a classroom..." prefWidth="200"/>
                 <Button text="Show Schedule" onAction="#onShowSchedule" styleClass="primary-button"/>
+                <Button text="📥 Export CSV" onAction="#onExportCSV"/>
             </HBox>
         </VBox>
     </top>

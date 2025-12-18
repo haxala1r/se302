@@ -265,4 +265,62 @@ public class ScheduleClassroomController {
                         return slotIndex;
                 }
         }
+
+        /**
+         * Exports the selected classroom's schedule as CSV.
+         */
+        @FXML
+        private void onExportCSV() {
+                Classroom selected = classroomComboBox.getValue();
+                if (selected == null) {
+                        showAlert(javafx.scene.control.Alert.AlertType.WARNING, "No Classroom",
+                                        "Please select a classroom first.");
+                        return;
+                }
+
+                if (scheduleTable.getItems().isEmpty()) {
+                        showAlert(javafx.scene.control.Alert.AlertType.WARNING, "No Data",
+                                        "No schedule data to export.");
+                        return;
+                }
+
+                javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+                fileChooser.setTitle("Export Classroom Schedule as CSV");
+                fileChooser.getExtensionFilters().add(
+                                new javafx.stage.FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+                fileChooser.setInitialFileName("schedule_classroom_" + selected.getClassroomId() + ".csv");
+
+                java.io.File file = fileChooser.showSaveDialog(scheduleTable.getScene().getWindow());
+                if (file == null)
+                        return;
+
+                try (java.io.PrintWriter writer = new java.io.PrintWriter(file)) {
+                        // Header
+                        writer.println("Classroom,Date,Time,Course,Students");
+
+                        // Data rows
+                        for (ClassroomSlotEntry entry : scheduleTable.getItems()) {
+                                writer.println(String.format("%s,\"%s\",%s,%s,%d",
+                                                selected.getClassroomId(),
+                                                entry.getDate(),
+                                                entry.getTime(),
+                                                entry.getCourse(),
+                                                entry.getStudentCount()));
+                        }
+
+                        showAlert(javafx.scene.control.Alert.AlertType.INFORMATION, "Export Complete",
+                                        "Classroom schedule exported to:\n" + file.getAbsolutePath());
+                } catch (java.io.IOException e) {
+                        showAlert(javafx.scene.control.Alert.AlertType.ERROR, "Export Failed",
+                                        "Could not write file: " + e.getMessage());
+                }
+        }
+
+        private void showAlert(javafx.scene.control.Alert.AlertType type, String title, String message) {
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(type);
+                alert.setTitle(title);
+                alert.setHeaderText(null);
+                alert.setContentText(message);
+                alert.showAndWait();
+        }
 }

@@ -236,4 +236,55 @@ public class ScheduleCourseController {
                         return slotIndex;
                 }
         }
+
+        /**
+         * Exports the course schedule as a CSV file.
+         */
+        @FXML
+        private void onExportCSV() {
+                if (courseScheduleTable.getItems().isEmpty()) {
+                        showAlert(javafx.scene.control.Alert.AlertType.WARNING, "No Data",
+                                        "No schedule data to export.");
+                        return;
+                }
+
+                javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+                fileChooser.setTitle("Export Course Schedule as CSV");
+                fileChooser.getExtensionFilters().add(
+                                new javafx.stage.FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+                fileChooser.setInitialFileName("schedule_courses.csv");
+
+                java.io.File file = fileChooser.showSaveDialog(courseScheduleTable.getScene().getWindow());
+                if (file == null)
+                        return;
+
+                try (java.io.PrintWriter writer = new java.io.PrintWriter(file)) {
+                        // Header
+                        writer.println("Course Code,Date,Time,Classroom,Enrolled Students");
+
+                        // Data rows
+                        for (CourseScheduleEntry entry : courseScheduleTable.getItems()) {
+                                writer.println(String.format("%s,\"%s\",%s,%s,%d",
+                                                entry.getCourseCode(),
+                                                entry.getDate(),
+                                                entry.getTime(),
+                                                entry.getClassroom(),
+                                                entry.getEnrolledCount()));
+                        }
+
+                        showAlert(javafx.scene.control.Alert.AlertType.INFORMATION, "Export Complete",
+                                        "Course schedule exported to:\n" + file.getAbsolutePath());
+                } catch (java.io.IOException e) {
+                        showAlert(javafx.scene.control.Alert.AlertType.ERROR, "Export Failed",
+                                        "Could not write file: " + e.getMessage());
+                }
+        }
+
+        private void showAlert(javafx.scene.control.Alert.AlertType type, String title, String message) {
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(type);
+                alert.setTitle(title);
+                alert.setHeaderText(null);
+                alert.setContentText(message);
+                alert.showAndWait();
+        }
 }

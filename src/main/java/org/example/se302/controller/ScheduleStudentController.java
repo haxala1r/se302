@@ -230,4 +230,62 @@ public class ScheduleStudentController {
             return slotIndex;
         }
     }
+
+    /**
+     * Exports the selected student's schedule as CSV.
+     */
+    @FXML
+    private void onExportCSV() {
+        Student selected = studentComboBox.getValue();
+        if (selected == null) {
+            showAlert(Alert.AlertType.WARNING, "No Student",
+                    "Please select a student first.");
+            return;
+        }
+
+        if (scheduleTable.getItems().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "No Data",
+                    "No schedule data to export.");
+            return;
+        }
+
+        javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+        fileChooser.setTitle("Export Student Schedule as CSV");
+        fileChooser.getExtensionFilters().add(
+                new javafx.stage.FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+        fileChooser.setInitialFileName("schedule_student_" + selected.getStudentId() + ".csv");
+
+        java.io.File file = fileChooser.showSaveDialog(scheduleTable.getScene().getWindow());
+        if (file == null)
+            return;
+
+        try (java.io.PrintWriter writer = new java.io.PrintWriter(file)) {
+            // Header
+            writer.println("Student ID,Course,Date,Time,Classroom");
+
+            // Data rows
+            for (CourseScheduleEntry entry : scheduleTable.getItems()) {
+                writer.println(String.format("%s,%s,\"%s\",%s,%s",
+                        selected.getStudentId(),
+                        entry.getCourseCode(),
+                        entry.getDateDisplay(),
+                        entry.getTimeDisplay(),
+                        entry.getClassroom()));
+            }
+
+            showAlert(Alert.AlertType.INFORMATION, "Export Complete",
+                    "Student schedule exported to:\n" + file.getAbsolutePath());
+        } catch (java.io.IOException e) {
+            showAlert(Alert.AlertType.ERROR, "Export Failed",
+                    "Could not write file: " + e.getMessage());
+        }
+    }
+
+    private void showAlert(Alert.AlertType type, String title, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
 }

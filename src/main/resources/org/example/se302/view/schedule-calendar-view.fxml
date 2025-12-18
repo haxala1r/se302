@@ -123,7 +123,7 @@
                 <HBox spacing="12" alignment="CENTER_LEFT">
                     <Label text="📆 Generated Schedule" styleClass="subsection-title"/>
                     <Region HBox.hgrow="ALWAYS"/>
-                    <Button text="📥 Export PDF" styleClass="small-button"/>
+                    <Button fx:id="exportButton" text="📥 Export CSV" onAction="#onExportCSV" styleClass="small-button"/>
                 </HBox>
                 
                 <!-- Schedule Grid -->
