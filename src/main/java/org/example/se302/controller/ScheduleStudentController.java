@@ -105,77 +105,58 @@ public class ScheduleStudentController {
 
         for (String courseCode : student.getEnrolledCourses()) {
             Course course = dataManager.getCourse(courseCode);
-            if (course != null) {
-                String dateStr = "Not Scheduled";
-                String timeStr = "-";
-                String classroom = "-";
-                int dayIndex = -1;
-                int slotIndex = -1;
+            if (course == null)
+                continue;
 
-                if (course.isScheduled()) {
-                    dayIndex = course.getExamDay();
-                    slotIndex = course.getExamTimeSlot();
-                    classroom = course.getAssignedClassroom();
+            String dateStr = "Not Scheduled";
+            String timeStr = "-";
+            String classroom = "-";
+            int dayIndex = -1, slotIndex = -1;
 
-                    if (config != null) {
-                        TimeSlot slot = config.getTimeSlot(dayIndex, slotIndex);
-                        if (slot != null) {
-                            dateStr = slot.getDate().toString(); // YYYY-MM-DD
-                            timeStr = slot.getStartTime().toString() + " - " + slot.getEndTime().toString();
-                        } else {
-                            dateStr = "Day " + (dayIndex + 1);
-                            timeStr = "Slot " + (slotIndex + 1);
-                        }
-                    } else {
-                        // Fallback if no config saved
-                        dateStr = "Day " + (dayIndex + 1);
-                        timeStr = "Slot " + (slotIndex + 1);
-                    }
+            if (course.isScheduled()) {
+                dayIndex = course.getExamDay();
+                slotIndex = course.getExamTimeSlot();
+                classroom = course.getAssignedClassroom();
+
+                TimeSlot slot = config != null ? config.getTimeSlot(dayIndex, slotIndex) : null;
+                if (slot != null) {
+                    dateStr = slot.getDate().toString();
+                    timeStr = slot.getStartTime() + " - " + slot.getEndTime();
+                } else {
+                    dateStr = "Day " + (dayIndex + 1);
+                    timeStr = "Slot " + (slotIndex + 1);
                 }
-
-                entries.add(new CourseScheduleEntry(courseCode, dateStr, timeStr, classroom, dayIndex, slotIndex));
             }
+
+            entries.add(new CourseScheduleEntry(courseCode, dateStr, timeStr, classroom, dayIndex, slotIndex));
         }
 
-        // Sort by day and time
         entries.sort(Comparator.comparingInt(CourseScheduleEntry::getDayIndex)
                 .thenComparingInt(CourseScheduleEntry::getSlotIndex));
-
-        // Analyze for highlights
         analyzeSchedule(entries);
-
         scheduleTable.setItems(FXCollections.observableArrayList(entries));
     }
 
     private void analyzeSchedule(List<CourseScheduleEntry> entries) {
-        if (entries.isEmpty())
-            return;
-
         for (int i = 0; i < entries.size(); i++) {
             CourseScheduleEntry current = entries.get(i);
             if (current.getDayIndex() == -1)
-                continue; // Skip unscheduled
+                continue;
 
-            // Check for multiple exams on same day
-            int examsOnDay = 0;
+            // Check for multiple exams and conflicts on same day
             for (CourseScheduleEntry other : entries) {
                 if (other.getDayIndex() == current.getDayIndex() && other.getDayIndex() != -1) {
-                    examsOnDay++;
+                    current.isMultipleExamsOnDay = true;
                     if (other.getSlotIndex() == current.getSlotIndex() && other != current) {
                         current.hasConflictWarning = true;
                     }
                 }
             }
-            if (examsOnDay > 1) {
-                current.isMultipleExamsOnDay = true;
-            }
 
-            // Check for consecutive days (look at previous scheduled exam)
-            // Since list is sorted, we can look at previous entry if it exists
+            // Check for consecutive days with previous exam
             if (i > 0) {
                 CourseScheduleEntry prev = entries.get(i - 1);
-                if (prev.getDayIndex() != -1 &&
-                        current.getDayIndex() == prev.getDayIndex() + 1) {
+                if (prev.getDayIndex() != -1 && current.getDayIndex() == prev.getDayIndex() + 1) {
                     current.isConsecutiveDay = true;
                 }
             }
@@ -229,5 +210,63 @@ public class ScheduleStudentController {
         public int getSlotIndex() {
             return slotIndex;
         }
+    }
+
+    /**
+     * Exports the selected student's schedule as CSV.
+     */
+    @FXML
+    private void onExportCSV() {
+        Student selected = studentComboBox.getValue();
+        if (selected == null) {
+            showAlert(Alert.AlertType.WARNING, "No Student",
+                    "Please select a student first.");
+            return;
+        }
+
+        if (scheduleTable.getItems().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "No Data",
+                    "No schedule data to export.");
+            return;
+        }
+
+        javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+        fileChooser.setTitle("Export Student Schedule as CSV");
+        fileChooser.getExtensionFilters().add(
+                new javafx.stage.FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+        fileChooser.setInitialFileName("schedule_student_" + selected.getStudentId() + ".csv");
+
+        java.io.File file = fileChooser.showSaveDialog(scheduleTable.getScene().getWindow());
+        if (file == null)
+            return;
+
+        try (java.io.PrintWriter writer = new java.io.PrintWriter(file)) {
+            // Header
+            writer.println("Student ID,Course,Date,Time,Classroom");
+
+            // Data rows
+            for (CourseScheduleEntry entry : scheduleTable.getItems()) {
+                writer.println(String.format("%s,%s,\"%s\",%s,%s",
+                        selected.getStudentId(),
+                        entry.getCourseCode(),
+                        entry.getDateDisplay(),
+                        entry.getTimeDisplay(),
+                        entry.getClassroom()));
+            }
+
+            showAlert(Alert.AlertType.INFORMATION, "Export Complete",
+                    "Student schedule exported to:\n" + file.getAbsolutePath());
+        } catch (java.io.IOException e) {
+            showAlert(Alert.AlertType.ERROR, "Export Failed",
+                    "Could not write file: " + e.getMessage());
+        }
+    }
+
+    private void showAlert(Alert.AlertType type, String title, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }

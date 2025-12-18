@@ -11,14 +11,14 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import org.example.se302.model.Classroom;
-import org.example.se302.model.ExamAssignment;
+import org.example.se302.model.Course;
 import org.example.se302.model.ScheduleConfiguration;
+import org.example.se302.model.TimeSlot;
 import org.example.se302.service.DataManager;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
-import java.util.Map;
 
 /**
  * Controller for the Classroom Schedule view.
@@ -46,10 +46,6 @@ public class ScheduleClassroomController {
         private Label utilizationLabel;
 
         private DataManager dataManager;
-
-        // Reference to the current schedule state (set by parent controller)
-        private Map<String, ExamAssignment> currentAssignments;
-        private ScheduleConfiguration configuration;
 
         @FXML
         public void initialize() {
@@ -112,15 +108,35 @@ public class ScheduleClassroomController {
                                 }
                         }
                 });
-        }
 
-        /**
-         * Sets the current schedule assignments. Called by parent controller after
-         * schedule generation.
-         */
-        public void setScheduleData(Map<String, ExamAssignment> assignments, ScheduleConfiguration config) {
-                this.currentAssignments = assignments;
-                this.configuration = config;
+                // Refresh when tab is selected - find TabPane once scene is available
+                scheduleTable.sceneProperty().addListener((obs, oldScene, newScene) -> {
+                        if (newScene != null) {
+                                // Find parent TabPane and listen for selection changes
+                                javafx.scene.Parent parent = scheduleTable.getParent();
+                                while (parent != null) {
+                                        if (parent.getParent() instanceof javafx.scene.control.TabPane) {
+                                                javafx.scene.control.TabPane tabPane = (javafx.scene.control.TabPane) parent
+                                                                .getParent();
+                                                // Find which tab contains our content
+                                                for (javafx.scene.control.Tab tab : tabPane.getTabs()) {
+                                                        if (tab.getContent() == parent) {
+                                                                tab.selectedProperty().addListener(
+                                                                                (o, wasSelected, isSelected) -> {
+                                                                                        if (isSelected && classroomComboBox
+                                                                                                        .getValue() != null) {
+                                                                                                onShowSchedule();
+                                                                                        }
+                                                                                });
+                                                                break;
+                                                        }
+                                                }
+                                                break;
+                                        }
+                                        parent = parent.getParent();
+                                }
+                        }
+                });
         }
 
         @FXML
@@ -132,67 +148,62 @@ public class ScheduleClassroomController {
                 selectedClassroomLabel.setText("Schedule for: " + selected.getClassroomId() +
                                 " (Capacity: " + selected.getCapacity() + ")");
 
+                ScheduleConfiguration config = dataManager.getActiveConfiguration();
                 ObservableList<ClassroomSlotEntry> entries = FXCollections.observableArrayList();
-                int totalSlots = 0;
                 int usedSlots = 0;
                 int totalStudents = 0;
 
-                // If we have assignments, filter by this classroom
-                if (currentAssignments != null && !currentAssignments.isEmpty()) {
-                        for (ExamAssignment assignment : currentAssignments.values()) {
-                                if (assignment.isAssigned() &&
-                                                selected.getClassroomId().equals(assignment.getClassroomId())) {
+                for (Course course : dataManager.getCourses()) {
+                        if (!course.isScheduled() || !selected.getClassroomId().equals(course.getAssignedClassroom()))
+                                continue;
 
-                                        // Format date
-                                        String dateStr;
-                                        if (configuration != null && configuration.getStartDate() != null) {
-                                                LocalDate examDate = configuration.getStartDate()
-                                                                .plusDays(assignment.getDay());
-                                                dateStr = examDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-                                        } else {
-                                                dateStr = "Day " + (assignment.getDay() + 1);
-                                        }
+                        int dayIndex = course.getExamDay();
+                        int slotIndex = course.getExamTimeSlot();
+                        int studentCount = course.getEnrolledStudentsCount();
+                        int utilization = selected.getCapacity() > 0
+                                        ? (studentCount * 100) / selected.getCapacity()
+                                        : 0;
 
-                                        // Format time
-                                        String timeStr = "Slot " + (assignment.getTimeSlotIndex() + 1);
+                        entries.add(new ClassroomSlotEntry(
+                                        formatDate(config, dayIndex),
+                                        formatTime(config, dayIndex, slotIndex),
+                                        course.getCourseCode(), studentCount, utilization + "%",
+                                        utilization, dayIndex, slotIndex));
 
-                                        // Calculate utilization percentage for this slot
-                                        int studentCount = assignment.getStudentCount();
-                                        int capacity = selected.getCapacity();
-                                        int utilizationPercent = capacity > 0 ? (studentCount * 100) / capacity : 0;
-                                        String utilizationStr = utilizationPercent + "%";
-
-                                        entries.add(new ClassroomSlotEntry(
-                                                        dateStr, timeStr, assignment.getCourseCode(),
-                                                        studentCount, utilizationStr, utilizationPercent,
-                                                        assignment.getDay(), assignment.getTimeSlotIndex()));
-
-                                        usedSlots++;
-                                        totalStudents += studentCount;
-                                }
-                        }
-
-                        // Calculate total possible slots
-                        if (configuration != null) {
-                                totalSlots = configuration.getNumDays() * configuration.getSlotsPerDay();
-                        }
+                        usedSlots++;
+                        totalStudents += studentCount;
                 }
 
-                // Sort by day then slot
                 entries.sort(Comparator.comparingInt(ClassroomSlotEntry::getDayIndex)
                                 .thenComparingInt(ClassroomSlotEntry::getSlotIndex));
-
                 scheduleTable.setItems(entries);
 
-                // Update overall utilization label
+                int totalSlots = config != null ? config.getNumDays() * config.getSlotsPerDay() : 0;
                 if (totalSlots > 0) {
-                        int overallUtilization = (usedSlots * 100) / totalSlots;
+                        int overallUtil = (usedSlots * 100) / totalSlots;
                         utilizationLabel.setText(String.format(
                                         "Overall Utilization: %d%% (%d/%d slots used, %d total students)",
-                                        overallUtilization, usedSlots, totalSlots, totalStudents));
+                                        overallUtil, usedSlots, totalSlots, totalStudents));
                 } else {
                         utilizationLabel.setText("Overall Utilization: 0% (No schedule data available)");
                 }
+        }
+
+        private String formatDate(ScheduleConfiguration config, int dayIndex) {
+                if (config != null && config.getStartDate() != null) {
+                        LocalDate examDate = config.getStartDate().plusDays(dayIndex);
+                        return examDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                }
+                return "Day " + (dayIndex + 1);
+        }
+
+        private String formatTime(ScheduleConfiguration config, int dayIndex, int slotIndex) {
+                if (config != null) {
+                        TimeSlot slot = config.getTimeSlot(dayIndex, slotIndex);
+                        if (slot != null)
+                                return slot.getStartTime() + " - " + slot.getEndTime();
+                }
+                return "Slot " + (slotIndex + 1);
         }
 
         // Helper class for table entries
@@ -249,5 +260,63 @@ public class ScheduleClassroomController {
                 public int getSlotIndex() {
                         return slotIndex;
                 }
+        }
+
+        /**
+         * Exports the selected classroom's schedule as CSV.
+         */
+        @FXML
+        private void onExportCSV() {
+                Classroom selected = classroomComboBox.getValue();
+                if (selected == null) {
+                        showAlert(javafx.scene.control.Alert.AlertType.WARNING, "No Classroom",
+                                        "Please select a classroom first.");
+                        return;
+                }
+
+                if (scheduleTable.getItems().isEmpty()) {
+                        showAlert(javafx.scene.control.Alert.AlertType.WARNING, "No Data",
+                                        "No schedule data to export.");
+                        return;
+                }
+
+                javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+                fileChooser.setTitle("Export Classroom Schedule as CSV");
+                fileChooser.getExtensionFilters().add(
+                                new javafx.stage.FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+                fileChooser.setInitialFileName("schedule_classroom_" + selected.getClassroomId() + ".csv");
+
+                java.io.File file = fileChooser.showSaveDialog(scheduleTable.getScene().getWindow());
+                if (file == null)
+                        return;
+
+                try (java.io.PrintWriter writer = new java.io.PrintWriter(file)) {
+                        // Header
+                        writer.println("Classroom,Date,Time,Course,Students");
+
+                        // Data rows
+                        for (ClassroomSlotEntry entry : scheduleTable.getItems()) {
+                                writer.println(String.format("%s,\"%s\",%s,%s,%d",
+                                                selected.getClassroomId(),
+                                                entry.getDate(),
+                                                entry.getTime(),
+                                                entry.getCourse(),
+                                                entry.getStudentCount()));
+                        }
+
+                        showAlert(javafx.scene.control.Alert.AlertType.INFORMATION, "Export Complete",
+                                        "Classroom schedule exported to:\n" + file.getAbsolutePath());
+                } catch (java.io.IOException e) {
+                        showAlert(javafx.scene.control.Alert.AlertType.ERROR, "Export Failed",
+                                        "Could not write file: " + e.getMessage());
+                }
+        }
+
+        private void showAlert(javafx.scene.control.Alert.AlertType type, String title, String message) {
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(type);
+                alert.setTitle(title);
+                alert.setHeaderText(null);
+                alert.setContentText(message);
+                alert.showAndWait();
         }
 }

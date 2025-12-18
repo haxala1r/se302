@@ -9,14 +9,13 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import org.example.se302.model.Course;
-import org.example.se302.model.ExamAssignment;
 import org.example.se302.model.ScheduleConfiguration;
+import org.example.se302.model.TimeSlot;
 import org.example.se302.service.DataManager;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
-import java.util.Map;
 
 // Color palette for days (pastel colors for readability)
 // Day 0 = Light Blue, Day 1 = Light Green, Day 2 = Light Yellow, etc.
@@ -42,11 +41,6 @@ public class ScheduleCourseController {
         private TableColumn<CourseScheduleEntry, String> classroomColumn;
 
         private DataManager dataManager;
-
-        // Reference to the current schedule state (set by parent controller or loaded
-        // from DB)
-        private Map<String, ExamAssignment> currentAssignments;
-        private ScheduleConfiguration configuration;
 
         @FXML
         public void initialize() {
@@ -122,66 +116,81 @@ public class ScheduleCourseController {
                 // Listen for data changes
                 dataManager.getCourses().addListener(
                                 (javafx.collections.ListChangeListener<Course>) c -> loadScheduleData());
-        }
 
-        /**
-         * Sets the current schedule assignments. Called by parent controller after
-         * schedule generation.
-         */
-        public void setScheduleData(Map<String, ExamAssignment> assignments, ScheduleConfiguration config) {
-                this.currentAssignments = assignments;
-                this.configuration = config;
-                loadScheduleData();
+                // Refresh when tab is selected - find TabPane once scene is available
+                courseScheduleTable.sceneProperty().addListener((obs, oldScene, newScene) -> {
+                        if (newScene != null) {
+                                loadScheduleData();
+                                // Find parent TabPane and listen for selection changes
+                                javafx.scene.Parent parent = courseScheduleTable.getParent();
+                                while (parent != null) {
+                                        if (parent.getParent() instanceof javafx.scene.control.TabPane) {
+                                                javafx.scene.control.TabPane tabPane = (javafx.scene.control.TabPane) parent
+                                                                .getParent();
+                                                // Find which tab contains our content
+                                                for (javafx.scene.control.Tab tab : tabPane.getTabs()) {
+                                                        if (tab.getContent() == parent) {
+                                                                tab.selectedProperty().addListener(
+                                                                                (o, wasSelected, isSelected) -> {
+                                                                                        if (isSelected)
+                                                                                                loadScheduleData();
+                                                                                });
+                                                                break;
+                                                        }
+                                                }
+                                                break;
+                                        }
+                                        parent = parent.getParent();
+                                }
+                        }
+                });
         }
 
         private void loadScheduleData() {
+                ScheduleConfiguration config = dataManager.getActiveConfiguration();
                 ObservableList<CourseScheduleEntry> entries = FXCollections.observableArrayList();
 
                 for (Course course : dataManager.getCourses()) {
-                        String courseCode = course.getCourseCode();
-                        int enrolled = course.getEnrolledStudentsCount();
-
                         String dateStr = "Not Scheduled";
                         String timeStr = "-";
                         String classroomStr = "-";
-                        int dayIndex = Integer.MAX_VALUE; // For sorting unscheduled items last
+                        int dayIndex = Integer.MAX_VALUE;
                         int slotIndex = Integer.MAX_VALUE;
 
-                        // Check if we have an assignment for this course
-                        if (currentAssignments != null && currentAssignments.containsKey(courseCode)) {
-                                ExamAssignment assignment = currentAssignments.get(courseCode);
-
-                                if (assignment.isAssigned()) {
-                                        dayIndex = assignment.getDay();
-                                        slotIndex = assignment.getTimeSlotIndex();
-
-                                        // Format date based on configuration start date + day offset
-                                        if (configuration != null && configuration.getStartDate() != null) {
-                                                LocalDate examDate = configuration.getStartDate().plusDays(dayIndex);
-                                                dateStr = examDate.format(
-                                                                DateTimeFormatter.ofPattern("dd/MM/yyyy (EEEE)"));
-                                        } else {
-                                                dateStr = "Day " + (dayIndex + 1);
-                                        }
-
-                                        // Format time slot
-                                        timeStr = "Slot " + (slotIndex + 1);
-
-                                        // Classroom
-                                        classroomStr = assignment.getClassroomId() != null ? assignment.getClassroomId()
-                                                        : "-";
-                                }
+                        if (course.isScheduled()) {
+                                dayIndex = course.getExamDay();
+                                slotIndex = course.getExamTimeSlot();
+                                classroomStr = course.getAssignedClassroom();
+                                dateStr = formatDate(config, dayIndex);
+                                timeStr = formatTime(config, dayIndex, slotIndex);
                         }
 
-                        entries.add(new CourseScheduleEntry(courseCode, enrolled, dateStr, timeStr, classroomStr,
+                        entries.add(new CourseScheduleEntry(course.getCourseCode(),
+                                        course.getEnrolledStudentsCount(), dateStr, timeStr, classroomStr,
                                         dayIndex, slotIndex));
                 }
 
-                // Sort by day first, then by slot
                 entries.sort(Comparator.comparingInt(CourseScheduleEntry::getDayIndex)
                                 .thenComparingInt(CourseScheduleEntry::getSlotIndex));
-
                 courseScheduleTable.setItems(entries);
+        }
+
+        private String formatDate(ScheduleConfiguration config, int dayIndex) {
+                if (config != null && config.getStartDate() != null) {
+                        LocalDate examDate = config.getStartDate().plusDays(dayIndex);
+                        return examDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy (EEEE)"));
+                }
+                return "Day " + (dayIndex + 1);
+        }
+
+        private String formatTime(ScheduleConfiguration config, int dayIndex, int slotIndex) {
+                if (config != null) {
+                        TimeSlot slot = config.getTimeSlot(dayIndex, slotIndex);
+                        if (slot != null) {
+                                return slot.getStartTime() + " - " + slot.getEndTime();
+                        }
+                }
+                return "Slot " + (slotIndex + 1);
         }
 
         // Helper class for table entries
@@ -232,5 +241,56 @@ public class ScheduleCourseController {
                 public int getSlotIndex() {
                         return slotIndex;
                 }
+        }
+
+        /**
+         * Exports the course schedule as a CSV file.
+         */
+        @FXML
+        private void onExportCSV() {
+                if (courseScheduleTable.getItems().isEmpty()) {
+                        showAlert(javafx.scene.control.Alert.AlertType.WARNING, "No Data",
+                                        "No schedule data to export.");
+                        return;
+                }
+
+                javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+                fileChooser.setTitle("Export Course Schedule as CSV");
+                fileChooser.getExtensionFilters().add(
+                                new javafx.stage.FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+                fileChooser.setInitialFileName("schedule_courses.csv");
+
+                java.io.File file = fileChooser.showSaveDialog(courseScheduleTable.getScene().getWindow());
+                if (file == null)
+                        return;
+
+                try (java.io.PrintWriter writer = new java.io.PrintWriter(file)) {
+                        // Header
+                        writer.println("Course Code,Date,Time,Classroom,Enrolled Students");
+
+                        // Data rows
+                        for (CourseScheduleEntry entry : courseScheduleTable.getItems()) {
+                                writer.println(String.format("%s,\"%s\",%s,%s,%d",
+                                                entry.getCourseCode(),
+                                                entry.getDate(),
+                                                entry.getTime(),
+                                                entry.getClassroom(),
+                                                entry.getEnrolledCount()));
+                        }
+
+                        showAlert(javafx.scene.control.Alert.AlertType.INFORMATION, "Export Complete",
+                                        "Course schedule exported to:\n" + file.getAbsolutePath());
+                } catch (java.io.IOException e) {
+                        showAlert(javafx.scene.control.Alert.AlertType.ERROR, "Export Failed",
+                                        "Could not write file: " + e.getMessage());
+                }
+        }
+
+        private void showAlert(javafx.scene.control.Alert.AlertType type, String title, String message) {
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(type);
+                alert.setTitle(title);
+                alert.setHeaderText(null);
+                alert.setContentText(message);
+                alert.showAndWait();
         }
 }

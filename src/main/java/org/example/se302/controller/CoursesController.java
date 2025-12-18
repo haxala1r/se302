@@ -15,20 +15,33 @@ import org.example.se302.service.DataManager;
  */
 public class CoursesController {
 
-    @FXML private TextField searchField;
-    @FXML private Label resultCountLabel;
-    @FXML private TableView<Course> coursesTable;
-    @FXML private TableColumn<Course, String> courseCodeColumn;
-    @FXML private TableColumn<Course, Number> studentCountColumn;
-    @FXML private TableColumn<Course, String> classroomColumn;
-    @FXML private TableColumn<Course, String> examDateColumn;
-    @FXML private TableColumn<Course, Void> actionColumn;
+    @FXML
+    private TextField searchField;
+    @FXML
+    private Label resultCountLabel;
+    @FXML
+    private TableView<Course> coursesTable;
+    @FXML
+    private TableColumn<Course, String> courseCodeColumn;
+    @FXML
+    private TableColumn<Course, Number> studentCountColumn;
+    @FXML
+    private TableColumn<Course, String> classroomColumn;
+    @FXML
+    private TableColumn<Course, String> examDateColumn;
+    @FXML
+    private TableColumn<Course, Void> actionColumn;
 
-    @FXML private VBox studentListPanel;
-    @FXML private Label studentListTitleLabel;
-    @FXML private TableView<String> enrolledStudentsTable;
-    @FXML private TableColumn<String, String> enrolledStudentIdColumn;
-    @FXML private Label enrolledCountLabel;
+    @FXML
+    private VBox studentListPanel;
+    @FXML
+    private Label studentListTitleLabel;
+    @FXML
+    private TableView<String> enrolledStudentsTable;
+    @FXML
+    private TableColumn<String, String> enrolledStudentIdColumn;
+    @FXML
+    private Label enrolledCountLabel;
 
     private DataManager dataManager;
     private FilteredList<Course> filteredCourses;
@@ -38,11 +51,10 @@ public class CoursesController {
         dataManager = DataManager.getInstance();
 
         // Set up table columns
-        courseCodeColumn.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getCourseCode()));
+        courseCodeColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getCourseCode()));
 
-        studentCountColumn.setCellValueFactory(cellData ->
-                new SimpleIntegerProperty(cellData.getValue().getEnrolledStudentsCount()));
+        studentCountColumn.setCellValueFactory(
+                cellData -> new SimpleIntegerProperty(cellData.getValue().getEnrolledStudentsCount()));
 
         classroomColumn.setCellValueFactory(cellData -> {
             String classroom = cellData.getValue().getAssignedClassroom();
@@ -50,8 +62,12 @@ public class CoursesController {
         });
 
         examDateColumn.setCellValueFactory(cellData -> {
-            String examDate = cellData.getValue().getExamDateTime();
-            return new SimpleStringProperty(examDate != null ? examDate : "Not Scheduled");
+            Course course = cellData.getValue();
+            if (course.isScheduled()) {
+                return new SimpleStringProperty("Day " + (course.getExamDay() + 1) +
+                        ", Slot " + (course.getExamTimeSlot() + 1));
+            }
+            return new SimpleStringProperty("Not Scheduled");
         });
 
         // Add "View Students" button to action column
@@ -73,8 +89,7 @@ public class CoursesController {
         });
 
         // Set up enrolled students table column
-        enrolledStudentIdColumn.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue()));
+        enrolledStudentIdColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue()));
 
         // Set up filtered list
         filteredCourses = new FilteredList<>(dataManager.getCourses(), p -> true);
@@ -106,14 +121,13 @@ public class CoursesController {
             filteredCourses.setPredicate(course -> true);
         } else {
             String lowerCaseFilter = searchText.toLowerCase().trim();
-            filteredCourses.setPredicate(course ->
-                    course.getCourseCode().toLowerCase().contains(lowerCaseFilter)
-            );
+            filteredCourses.setPredicate(course -> course.getCourseCode().toLowerCase().contains(lowerCaseFilter));
         }
     }
 
     private void showEnrolledStudents(Course course) {
-        if (course == null) return;
+        if (course == null)
+            return;
 
         studentListTitleLabel.setText("Students Enrolled in " + course.getCourseCode());
         enrolledStudentsTable.setItems(FXCollections.observableArrayList(course.getEnrolledStudents()));

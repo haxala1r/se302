@@ -737,4 +737,68 @@ public class ScheduleCalendarController {
                     "Could not update the exam assignment. The exam may be locked.");
         }
     }
+
+    /**
+     * Exports the schedule as a CSV grid (days × time slots).
+     */
+    @FXML
+    private void onExportCSV() {
+        if (currentSchedule == null || currentConfig == null) {
+            showAlert(Alert.AlertType.WARNING, "No Schedule",
+                    "Please generate a schedule first.");
+            return;
+        }
+
+        javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+        fileChooser.setTitle("Export Schedule as CSV");
+        fileChooser.getExtensionFilters().add(
+                new javafx.stage.FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+        fileChooser.setInitialFileName("schedule_calendar.csv");
+
+        java.io.File file = fileChooser.showSaveDialog(scheduleGrid.getScene().getWindow());
+        if (file == null)
+            return;
+
+        try (java.io.PrintWriter writer = new java.io.PrintWriter(file)) {
+            int numDays = currentConfig.getNumDays();
+            int slotsPerDay = currentConfig.getSlotsPerDay();
+
+            // Header row: Time Slot, Day 1, Day 2, ...
+            StringBuilder header = new StringBuilder("Time Slot");
+            for (int day = 0; day < numDays; day++) {
+                LocalDate date = currentConfig.getStartDate().plusDays(day);
+                header.append(",").append(date.toString());
+            }
+            writer.println(header);
+
+            // Data rows: one per time slot
+            for (int slot = 0; slot < slotsPerDay; slot++) {
+                StringBuilder row = new StringBuilder();
+                TimeSlot timeSlot = currentConfig.getTimeSlot(0, slot);
+                String slotLabel = timeSlot != null
+                        ? timeSlot.getStartTime() + "-" + timeSlot.getEndTime()
+                        : "Slot " + (slot + 1);
+                row.append(slotLabel);
+
+                for (int day = 0; day < numDays; day++) {
+                    row.append(",");
+                    // Find exams at this day/slot
+                    List<String> exams = new ArrayList<>();
+                    for (ExamAssignment a : currentSchedule.getAssignments().values()) {
+                        if (a.isAssigned() && a.getDay() == day && a.getTimeSlotIndex() == slot) {
+                            exams.add(a.getCourseCode() + " (" + a.getClassroomId() + ")");
+                        }
+                    }
+                    row.append("\"").append(String.join("; ", exams)).append("\"");
+                }
+                writer.println(row);
+            }
+
+            showAlert(Alert.AlertType.INFORMATION, "Export Complete",
+                    "Schedule exported to:\n" + file.getAbsolutePath());
+        } catch (java.io.IOException e) {
+            showAlert(Alert.AlertType.ERROR, "Export Failed",
+                    "Could not write file: " + e.getMessage());
+        }
+    }
 }

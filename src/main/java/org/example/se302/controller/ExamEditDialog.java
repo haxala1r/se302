@@ -236,13 +236,13 @@ public class ExamEditDialog extends Dialog<ExamEditDialog.EditResult> {
             validationPanel.setStyle("-fx-background-color: #e8f5e9; -fx-background-radius: 5;");
             updateButtonStates(true, false);
         } else if (currentValidation.hasHardViolations()) {
-            validationStatusLabel.setText("❌ Constraint violations found");
+            validationStatusLabel.setText("Constraint violations found!");
             validationStatusLabel.setTextFill(Color.web("#e74c3c"));
             violationDetails.setText(currentValidation.getFormattedMessage());
             validationPanel.setStyle("-fx-background-color: #ffebee; -fx-background-radius: 5;");
             updateButtonStates(false, true);
         } else {
-            validationStatusLabel.setText("⚠️ Warnings found");
+            validationStatusLabel.setText("Warnings found!");
             validationStatusLabel.setTextFill(Color.web("#f39c12"));
             violationDetails.setText(currentValidation.getFormattedMessage());
             validationPanel.setStyle("-fx-background-color: #fff3e0; -fx-background-radius: 5;");

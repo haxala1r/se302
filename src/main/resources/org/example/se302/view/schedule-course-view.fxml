@@ -14,7 +14,11 @@
             <padding>
                 <Insets top="20" right="20" bottom="20" left="20"/>
             </padding>
-            <Label text="Course Schedule View" styleClass="section-title"/>
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="Course Schedule View" styleClass="section-title"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button text="📥 Export CSV" onAction="#onExportCSV"/>
+            </HBox>
             <Label text="All courses and their exam assignments" wrapText="true"/>
             <Separator/>
             <TableView fx:id="courseScheduleTable" VBox.vgrow="ALWAYS">
