@@ -63,28 +63,36 @@ public class ConstraintValidator {
         ValidationResult doubleBookingResult = checkNoDoubleBooking(assignment, scheduleState);
         result.merge(doubleBookingResult);
 
-        // Check student constraints - only check same time slot conflicts (always
-        // required)
+        // Check student constraints
         Course course = dataManager.getCourse(assignment.getCourseCode());
         if (course != null) {
-            // Check if student has another exam at the SAME time slot (hard constraint)
+            // HARD CONSTRAINT: Check if student has another exam at the SAME time slot
+            // This is ALWAYS required
             ValidationResult sameTimeResult = checkNoSameTimeExams(assignment, scheduleState, course);
             result.merge(sameTimeResult);
 
-            // Only check consecutive and max per day if back-to-back is NOT allowed
+            // HARD CONSTRAINT: Max 2 exams per day per student
+            // This is ALWAYS enforced, regardless of allowBackToBack flag
+            for (String studentId : course.getEnrolledStudents()) {
+                ValidationResult maxPerDayResult = checkMaxTwoExamsPerDay(
+                        studentId, assignment, scheduleState);
+                result.merge(maxPerDayResult);
+
+                // If max per day violated, no need to check more students
+                if (!result.isValid()) {
+                    break;
+                }
+            }
+
+            // SOFT CONSTRAINT: No consecutive exams (back-to-back)
+            // Only enforced when allowBackToBack = false
             if (!allowBackToBack) {
                 for (String studentId : course.getEnrolledStudents()) {
-                    // Check no consecutive exams (soft - skip if allowBackToBack)
                     ValidationResult consecutiveResult = checkNoConsecutiveExams(
                             studentId, assignment, scheduleState);
                     result.merge(consecutiveResult);
 
-                    // Check max 2 exams per day
-                    ValidationResult maxPerDayResult = checkMaxTwoExamsPerDay(
-                            studentId, assignment, scheduleState);
-                    result.merge(maxPerDayResult);
-
-                    // If already invalid, no need to check more students
+                    // If consecutive violation, no need to check more students
                     if (!result.isValid()) {
                         break;
                     }

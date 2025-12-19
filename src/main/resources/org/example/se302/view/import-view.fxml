@@ -101,9 +101,9 @@
         <VBox spacing="12" VBox.vgrow="ALWAYS" styleClass="card">
             <Label text="Import Messages" styleClass="subsection-title"/>
             <TextArea fx:id="messagesArea" editable="false" wrapText="true" VBox.vgrow="ALWAYS"
-                      prefHeight="200"
+                      prefHeight="300" minHeight="250" maxHeight="500"
                       promptText="Validation messages and import results will appear here..."
-                      style="-fx-font-family: 'Consolas', 'Monaco', monospace; -fx-font-size: 12px;"/>
+                      style="-fx-font-family: 'Consolas', 'Monaco', monospace; -fx-font-size: 13px; -fx-padding: 12px;"/>
         </VBox>
 
         <!-- Action Buttons -->

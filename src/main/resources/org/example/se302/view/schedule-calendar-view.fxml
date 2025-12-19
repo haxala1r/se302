@@ -79,7 +79,7 @@
                     <!-- Summary -->
                     <HBox spacing="12" alignment="CENTER_LEFT" styleClass="summary-row">
                         <Label text="📊 Total Time Slots:" style="-fx-font-weight: 700;"/>
-                        <Label fx:id="summaryLabel" text="5 days × 4 slots = 20 slots" 
+                        <Label fx:id="summaryLabel" text="8 days × 4 slots = 32 slots"
                                styleClass="summary-value"/>
                     </HBox>
                 </VBox>

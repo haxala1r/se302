@@ -170,10 +170,13 @@ public class ScheduleGeneratorService {
 
             // Try each classroom
             for (Classroom classroom : suitableClassrooms) {
-                // Temporarily assign
-                assignment.setDay(timeSlot.day);
-                assignment.setTimeSlotIndex(timeSlot.slot);
-                assignment.setClassroomId(classroom.getClassroomId());
+                // Temporarily assign (using updateAssignment to maintain assignedCourses counter)
+                scheduleState.updateAssignment(
+                        assignment.getCourseCode(),
+                        timeSlot.day,
+                        timeSlot.slot,
+                        classroom.getClassroomId()
+                );
 
                 // Validate assignment - pass allowBackToBack from config
                 ConstraintValidator.ValidationResult validationResult = validator.validateAssignment(assignment,
@@ -186,10 +189,13 @@ public class ScheduleGeneratorService {
                     }
                 }
 
-                // Backtrack: reset assignment
-                assignment.setDay(-1);
-                assignment.setTimeSlotIndex(-1);
-                assignment.setClassroomId(null);
+                // Backtrack: reset assignment (using updateAssignment to maintain assignedCourses counter)
+                scheduleState.updateAssignment(
+                        assignment.getCourseCode(),
+                        -1,
+                        -1,
+                        null
+                );
             }
         }
 

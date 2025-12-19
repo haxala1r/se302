@@ -121,7 +121,7 @@ public class ScheduleCalendarController {
 
     private void initializeSpinners() {
         // Number of days spinner (1-30)
-        SpinnerValueFactory<Integer> daysFactory = new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 30, 5);
+        SpinnerValueFactory<Integer> daysFactory = new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 30, 8);
         numDaysSpinner.setValueFactory(daysFactory);
 
         // Slots per day spinner (1-10)
@@ -362,6 +362,10 @@ public class ScheduleCalendarController {
     }
 
     private void updateStatistics(ScheduleState schedule, long durationMs) {
+        // Update total courses (BUG FIX: this was missing!)
+        totalCoursesLabel.setText(String.valueOf(schedule.getTotalCourses()));
+
+        // Update scheduled courses
         scheduledCoursesLabel.setText(String.valueOf(schedule.getAssignedCourses()));
 
         // Count unique classrooms used
@@ -390,6 +394,12 @@ public class ScheduleCalendarController {
         int numDays = config.getNumDays();
         int slotsPerDay = config.getSlotsPerDay();
 
+        // Dynamically set minimum grid width to fit all columns
+        // Time column (120px) + each day column (200px) + padding
+        double minGridWidth = 120 + (numDays * 200) + 40;
+        scheduleGrid.setMinWidth(minGridWidth);
+        scheduleGrid.setPrefWidth(minGridWidth);
+
         // Column constraints - make columns wider for better visibility
         ColumnConstraints headerCol = new ColumnConstraints();
         headerCol.setMinWidth(100);
@@ -398,9 +408,9 @@ public class ScheduleCalendarController {
 
         for (int day = 0; day < numDays; day++) {
             ColumnConstraints dayCol = new ColumnConstraints();
-            dayCol.setMinWidth(180);
-            dayCol.setPrefWidth(220);
-            dayCol.setHgrow(Priority.ALWAYS);
+            dayCol.setMinWidth(135);
+            dayCol.setPrefWidth(150);
+            dayCol.setHgrow(Priority.NEVER); // Prevent shrinking, allow horizontal scroll
             scheduleGrid.getColumnConstraints().add(dayCol);
         }
 
@@ -531,9 +541,10 @@ public class ScheduleCalendarController {
                 examBox.setOnDragDone(e -> {
                     draggedExam = null;
                     examBox.setOpacity(1.0);
-                    // Refresh grid to reset all cell colors
+                    // Defer grid refresh to after drag event completes to avoid crash
+                    // when modifying scene graph during active event processing
                     if (currentSchedule != null && currentConfig != null) {
-                        displayScheduleGrid(currentSchedule, currentConfig);
+                        Platform.runLater(() -> displayScheduleGrid(currentSchedule, currentConfig));
                     }
                     e.consume();
                 });

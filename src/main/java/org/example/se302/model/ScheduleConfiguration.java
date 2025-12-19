@@ -82,7 +82,7 @@ public class ScheduleConfiguration {
      * Creates a default schedule configuration.
      */
     public ScheduleConfiguration() {
-        this.numDays = 5;
+        this.numDays = 8;
         this.slotsPerDay = 4;
         this.startDate = LocalDate.now().plusDays(7); // Default: start in a week
         this.slotDurationMinutes = 120; // 2 hours
