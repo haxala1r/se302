@@ -90,6 +90,8 @@
                 <HBox spacing="16" alignment="CENTER_LEFT">
                     <Button fx:id="generateButton" text="🚀 Generate Schedule" 
                             onAction="#onGenerateSchedule" styleClass="primary-button"/>
+                    <Button fx:id="regenerateButton" text="🔄 Regenerate" 
+                            onAction="#onRegenerateSchedule" styleClass="secondary-button"/>
                     <Button fx:id="cancelButton" text="Cancel" onAction="#onCancelGeneration" 
                             disable="true"/>
                     <Region HBox.hgrow="ALWAYS"/>

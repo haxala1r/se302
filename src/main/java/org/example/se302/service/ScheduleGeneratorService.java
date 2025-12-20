@@ -25,6 +25,8 @@ public class ScheduleGeneratorService {
     private final DataManager dataManager;
     private final AtomicBoolean cancelled;
     private ProgressListener progressListener;
+    private Random random;
+    private boolean useRandomization = false;
 
     // Timeout in milliseconds (30 seconds)
     private static final long TIMEOUT_MS = 30000;
@@ -38,6 +40,31 @@ public class ScheduleGeneratorService {
     public ScheduleGeneratorService() {
         this.dataManager = DataManager.getInstance();
         this.cancelled = new AtomicBoolean(false);
+        this.random = new Random();
+    }
+
+    /**
+     * Enable randomization with a new random seed.
+     * Call this before generateSchedule() to get a different schedule each time.
+     */
+    public void enableRandomization() {
+        this.useRandomization = true;
+        this.random = new Random(); // New seed each time
+    }
+
+    /**
+     * Enable randomization with a specific seed (useful for reproducibility).
+     */
+    public void enableRandomization(long seed) {
+        this.useRandomization = true;
+        this.random = new Random(seed);
+    }
+
+    /**
+     * Disable randomization (use deterministic algorithm).
+     */
+    public void disableRandomization() {
+        this.useRandomization = false;
     }
 
     /**
@@ -415,6 +442,7 @@ public class ScheduleGeneratorService {
 
     /**
      * Selects the best assignment candidate based on the optimization strategy.
+     * When randomization is enabled, selects randomly from top-scoring candidates.
      */
     private AssignmentCandidate selectBestCandidate(
             List<AssignmentCandidate> candidates,
@@ -422,6 +450,11 @@ public class ScheduleGeneratorService {
             Map<String, List<int[]>> studentExams,
             Set<String> enrolledStudents,
             Map<String, Set<String>> slotClassrooms) {
+
+        // If randomization is enabled, shuffle candidates first to introduce variety
+        if (useRandomization) {
+            Collections.shuffle(candidates, random);
+        }
 
         ScheduleConfiguration.OptimizationStrategy strategy = config.getOptimizationStrategy();
 
@@ -461,8 +494,72 @@ public class ScheduleGeneratorService {
                 break;
         }
 
+        // When randomization is enabled, pick randomly from top candidates with similar
+        // scores
+        if (useRandomization && candidates.size() > 1) {
+            return selectFromTopCandidates(candidates, studentExams, enrolledStudents, strategy, slotClassrooms);
+        }
+
         // Return best (first)
         return candidates.get(0);
+    }
+
+    /**
+     * Selects randomly from candidates with similar (near-optimal) scores.
+     * This introduces variety while still respecting the optimization strategy.
+     */
+    private AssignmentCandidate selectFromTopCandidates(
+            List<AssignmentCandidate> candidates,
+            Map<String, List<int[]>> studentExams,
+            Set<String> enrolledStudents,
+            ScheduleConfiguration.OptimizationStrategy strategy,
+            Map<String, Set<String>> slotClassrooms) {
+
+        // Calculate the score of the best candidate
+        double bestScore = calculateCandidateScore(candidates.get(0), studentExams, enrolledStudents, strategy,
+                slotClassrooms);
+
+        // Tolerance for considering candidates "equally good" (within 10% of best)
+        double tolerance = Math.abs(bestScore) * 0.1;
+        if (tolerance < 1.0)
+            tolerance = 1.0; // Minimum tolerance
+
+        // Collect all candidates within tolerance of the best score
+        List<AssignmentCandidate> topCandidates = new ArrayList<>();
+        for (AssignmentCandidate candidate : candidates) {
+            double score = calculateCandidateScore(candidate, studentExams, enrolledStudents, strategy, slotClassrooms);
+            if (Math.abs(score - bestScore) <= tolerance) {
+                topCandidates.add(candidate);
+            }
+        }
+
+        // Pick randomly from top candidates
+        if (topCandidates.isEmpty()) {
+            return candidates.get(0);
+        }
+        return topCandidates.get(random.nextInt(topCandidates.size()));
+    }
+
+    /**
+     * Calculate a score for a candidate based on the optimization strategy.
+     */
+    private double calculateCandidateScore(
+            AssignmentCandidate candidate,
+            Map<String, List<int[]>> studentExams,
+            Set<String> enrolledStudents,
+            ScheduleConfiguration.OptimizationStrategy strategy,
+            Map<String, Set<String>> slotClassrooms) {
+
+        switch (strategy) {
+            case MINIMIZE_DAYS:
+                return candidate.day * 100.0 + candidate.slot;
+            case MINIMIZE_CLASSROOMS:
+                String key = candidate.day + "-" + candidate.slot;
+                return slotClassrooms.getOrDefault(key, Collections.emptySet()).size() * 100.0 + candidate.day;
+            case STUDENT_FRIENDLY:
+            default:
+                return calculateStudentFriendlyPenalty(candidate, studentExams, enrolledStudents);
+        }
     }
 
     /**

@@ -49,6 +49,8 @@ public class ScheduleCalendarController {
     @FXML
     private Button generateButton;
     @FXML
+    private Button regenerateButton;
+    @FXML
     private Button cancelButton;
     @FXML
     private Label statusLabel;
@@ -251,24 +253,81 @@ public class ScheduleCalendarController {
     }
 
     private void startGeneration(ScheduleConfiguration config) {
+        startGeneration(config, false);
+    }
+
+    /**
+     * Regenerate the schedule with randomization to produce a different result.
+     */
+    @FXML
+    private void onRegenerateSchedule() {
+        // Validate data
+        if (dataManager.getTotalCourses() == 0) {
+            showAlert(Alert.AlertType.WARNING, "No Data",
+                    "Please import course data before generating a schedule.");
+            return;
+        }
+
+        if (dataManager.getTotalClassrooms() == 0) {
+            showAlert(Alert.AlertType.WARNING, "No Classrooms",
+                    "Please import classroom data before generating a schedule.");
+            return;
+        }
+
+        // Validate configuration
+        if (startDatePicker.getValue() == null) {
+            showAlert(Alert.AlertType.WARNING, "Missing Date",
+                    "Please select a start date for the exam period.");
+            return;
+        }
+
+        // Build configuration
+        ScheduleConfiguration config = buildConfiguration();
+
+        // Validate total slots
+        int totalSlots = config.getTotalSlots();
+        int totalCourses = dataManager.getTotalCourses();
+        int totalClassrooms = dataManager.getTotalClassrooms();
+
+        if (totalSlots * totalClassrooms < totalCourses) {
+            showAlert(Alert.AlertType.WARNING, "Insufficient Capacity",
+                    String.format(
+                            "Not enough time slots! You have %d courses but only %d total capacity (%d slots × %d classrooms).\n\nPlease increase days or slots per day.",
+                            totalCourses, totalSlots * totalClassrooms, totalSlots, totalClassrooms));
+            return;
+        }
+
+        // Start generation with randomization enabled
+        startGeneration(config, true);
+    }
+
+    private void startGeneration(ScheduleConfiguration config, boolean useRandomization) {
         // Update UI for generation
         generateButton.setDisable(true);
+        if (regenerateButton != null)
+            regenerateButton.setDisable(true);
         cancelButton.setDisable(false);
         progressContainer.setVisible(true);
         progressContainer.setManaged(true);
         progressBar.setProgress(0);
         if (progressIndicator != null)
             progressIndicator.setProgress(-1.0); // Indeterminate
-        progressLabel.setText("Generating Schedule...");
+        progressLabel.setText(useRandomization ? "Regenerating Schedule..." : "Generating Schedule...");
         if (progressDetailLabel != null)
             progressDetailLabel.setText("Initializing CSP solver...");
-        statusLabel.setText("⏳ Generating schedule...");
+        statusLabel.setText("⏳ " + (useRandomization ? "Regenerating" : "Generating") + " schedule...");
         statusLabel.setStyle("-fx-text-fill: #3498db;");
 
         long startTime = System.currentTimeMillis();
 
         // Create generator service
         generatorService = new ScheduleGeneratorService();
+
+        // Enable randomization if requested (for regenerate button)
+        if (useRandomization) {
+            generatorService.enableRandomization();
+        }
+
         generatorService.setProgressListener((progress, message) -> {
             Platform.runLater(() -> {
                 progressBar.setProgress(progress);
@@ -298,6 +357,8 @@ public class ScheduleCalendarController {
             ScheduleConfiguration config, long durationMs) {
         // Reset UI
         generateButton.setDisable(false);
+        if (regenerateButton != null)
+            regenerateButton.setDisable(false);
         cancelButton.setDisable(true);
         progressContainer.setVisible(false);
         progressContainer.setManaged(false);
