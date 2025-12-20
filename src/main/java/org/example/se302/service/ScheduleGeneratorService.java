@@ -6,105 +6,261 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Service for generating exam schedules using Constraint Satisfaction Problem
- * (CSP) solving.
- * Implements backtracking algorithm with MRV and LCV heuristics.
- * Works with the day/timeSlotIndex based ExamAssignment architecture.
+ * Service for generating exam schedules using a greedy constraint-based
+ * algorithm.
+ * 
+ * Constraints enforced:
+ * 1. No student can have two exams at the same time
+ * 2. No student can have more than 2 exams per day
+ * 3. Students need at least 1 hour break between consecutive exams
+ * 4. Number of concurrent exams cannot exceed available classrooms
+ * 
+ * Features:
+ * - Multiple exams can be scheduled in the same time slot (in different
+ * classrooms)
+ * - Timeout protection (30 seconds max)
+ * - Clear error messages on failure
  */
 public class ScheduleGeneratorService {
     private final DataManager dataManager;
-    private final ConstraintValidator validator;
     private final AtomicBoolean cancelled;
     private ProgressListener progressListener;
 
+    // Timeout in milliseconds (30 seconds)
+    private static final long TIMEOUT_MS = 30000;
+
+    // Minimum break between exams in slots (1 hour = 1 slot typically)
+    private static final int MIN_BREAK_SLOTS = 1;
+
+    // Maximum exams per student per day
+    private static final int MAX_EXAMS_PER_DAY = 2;
+
     public ScheduleGeneratorService() {
         this.dataManager = DataManager.getInstance();
-        this.validator = new ConstraintValidator();
         this.cancelled = new AtomicBoolean(false);
     }
 
     /**
      * Generate an exam schedule based on configuration.
-     * Uses multi-restart optimization to find the best schedule among multiple attempts.
+     * Uses greedy algorithm with conflict detection.
      */
     public ScheduleResult generateSchedule(ScheduleConfiguration config) {
         cancelled.set(false);
+        long startTime = System.currentTimeMillis();
 
         // Validate input
         if (dataManager.getTotalCourses() == 0) {
-            return ScheduleResult.failure("No courses to schedule");
+            return ScheduleResult.failure("No courses to schedule. Please import course data first.");
         }
 
         if (dataManager.getTotalClassrooms() == 0) {
-            return ScheduleResult.failure("No classrooms available");
+            return ScheduleResult.failure("No classrooms available. Please import classroom data first.");
         }
 
-        // Get courses ordered by MRV heuristic
-        List<Course> coursesToSchedule = getCoursesOrderedByMRV();
+        List<Course> courses = new ArrayList<>(dataManager.getCourses());
+        List<Classroom> classrooms = new ArrayList<>(dataManager.getClassrooms());
 
-        // Multi-restart optimization: try multiple schedules and pick the best
-        int numRestarts = 5; // Generate 5 different schedules
-        ScheduleState bestSchedule = null;
-        double bestScore = Double.MAX_VALUE;
-        int successfulAttempts = 0;
+        // Build conflict graph: which courses share students
+        Map<String, Set<String>> conflictGraph = buildConflictGraph(courses);
 
-        updateProgress(0, numRestarts, "Generating schedules (multi-restart optimization)...");
+        // Sort courses by number of conflicts (most constrained first)
+        courses.sort((c1, c2) -> {
+            int conflicts1 = conflictGraph.getOrDefault(c1.getCourseCode(), Collections.emptySet()).size();
+            int conflicts2 = conflictGraph.getOrDefault(c2.getCourseCode(), Collections.emptySet()).size();
+            if (conflicts1 != conflicts2) {
+                return Integer.compare(conflicts2, conflicts1); // More conflicts first
+            }
+            // Tiebreaker: more students first
+            return Integer.compare(c2.getEnrolledStudentsCount(), c1.getEnrolledStudentsCount());
+        });
 
-        for (int attempt = 0; attempt < numRestarts; attempt++) {
+        // Initialize schedule state
+        ScheduleState scheduleState = initializeScheduleState(config);
+
+        // Track student exam assignments: studentId -> list of (day, slot) pairs
+        Map<String, List<int[]>> studentExams = new HashMap<>();
+
+        // Track classroom usage: "day-slot" -> set of used classroom IDs
+        Map<String, Set<String>> slotClassrooms = new HashMap<>();
+
+        int totalCourses = courses.size();
+        int scheduledCount = 0;
+
+        updateProgress(0, totalCourses, "Starting schedule generation...");
+
+        // Try to schedule each course
+        for (int i = 0; i < courses.size(); i++) {
+            // Check timeout
+            if (System.currentTimeMillis() - startTime > TIMEOUT_MS) {
+                return ScheduleResult.failure(
+                        String.format("Scheduling timed out after 30 seconds. Scheduled %d/%d courses. " +
+                                "Try increasing the number of days or time slots.", scheduledCount, totalCourses));
+            }
+
+            // Check cancellation
             if (cancelled.get()) {
                 return ScheduleResult.cancelled();
             }
 
-            // Create fresh schedule state for this attempt
-            ScheduleState scheduleState = initializeScheduleState(config);
+            Course course = courses.get(i);
+            List<String> enrolledStudentsList = course.getEnrolledStudents();
+            Set<String> enrolledStudents = new HashSet<>(enrolledStudentsList);
 
-            updateProgress(attempt, numRestarts,
-                    String.format("Attempt %d/%d: Starting backtracking...", attempt + 1, numRestarts));
+            updateProgress(i, totalCourses, "Scheduling " + course.getCourseCode() + "...");
 
-            // Randomize search order slightly for diversity
-            List<Course> shuffledCourses = new ArrayList<>(coursesToSchedule);
-            if (attempt > 0) {
-                // Keep MRV heuristic but add small random perturbation
-                shuffledCourses = perturbCourseOrder(shuffledCourses, attempt);
-            }
+            // Find a valid slot for this course
+            boolean assigned = false;
+            String failureReason = "";
 
-            // Run backtracking
-            boolean success = backtrack(scheduleState, shuffledCourses, 0, config);
+            // Try each day and slot
+            dayLoop: for (int day = 0; day < config.getNumDays() && !assigned; day++) {
+                for (int slot = 0; slot < config.getSlotsPerDay() && !assigned; slot++) {
+                    // Check if this slot is valid for all enrolled students
+                    String slotKey = day + "-" + slot;
+                    boolean slotValid = true;
+                    String reason = "";
 
-            if (success) {
-                successfulAttempts++;
+                    for (String studentId : enrolledStudents) {
+                        // Check constraint 1: No concurrent exams
+                        List<int[]> studentExamList = studentExams.getOrDefault(studentId, new ArrayList<>());
+                        for (int[] exam : studentExamList) {
+                            if (exam[0] == day && exam[1] == slot) {
+                                slotValid = false;
+                                reason = "Student " + studentId + " already has exam at this time";
+                                break;
+                            }
+                        }
+                        if (!slotValid)
+                            break;
 
-                // Evaluate this schedule using objective function
-                double score = ScheduleObjective.evaluateSchedule(scheduleState, config, dataManager);
+                        // Check constraint 2: Max 2 exams per day
+                        int examsToday = 0;
+                        for (int[] exam : studentExamList) {
+                            if (exam[0] == day)
+                                examsToday++;
+                        }
+                        if (examsToday >= MAX_EXAMS_PER_DAY) {
+                            slotValid = false;
+                            reason = "Student " + studentId + " already has " + MAX_EXAMS_PER_DAY + " exams on day "
+                                    + (day + 1);
+                            break;
+                        }
 
-                updateProgress(attempt + 1, numRestarts,
-                        String.format("Attempt %d/%d: Found schedule (score: %.1f, best: %.1f)",
-                                attempt + 1, numRestarts, score, bestScore));
+                        // Check constraint 3: At least 1 hour break between exams
+                        for (int[] exam : studentExamList) {
+                            if (exam[0] == day) {
+                                int slotDiff = Math.abs(exam[1] - slot);
+                                if (slotDiff > 0 && slotDiff <= MIN_BREAK_SLOTS) {
+                                    slotValid = false;
+                                    reason = "Student " + studentId + " needs at least 1 hour break between exams";
+                                    break;
+                                }
+                            }
+                        }
+                        if (!slotValid)
+                            break;
+                    }
 
-                if (score < bestScore) {
-                    bestScore = score;
-                    bestSchedule = scheduleState.copy();
+                    if (!slotValid) {
+                        failureReason = reason;
+                        continue;
+                    }
+
+                    // Check constraint 4: Find available classroom
+                    Set<String> usedClassrooms = slotClassrooms.getOrDefault(slotKey, new HashSet<>());
+                    Classroom selectedClassroom = null;
+
+                    // Sort classrooms by capacity (prefer smallest that fits)
+                    List<Classroom> sortedClassrooms = new ArrayList<>(classrooms);
+                    sortedClassrooms.sort(Comparator.comparingInt(Classroom::getCapacity));
+
+                    for (Classroom classroom : sortedClassrooms) {
+                        if (!usedClassrooms.contains(classroom.getClassroomId()) &&
+                                classroom.getCapacity() >= course.getEnrolledStudentsCount()) {
+                            selectedClassroom = classroom;
+                            break;
+                        }
+                    }
+
+                    if (selectedClassroom == null) {
+                        failureReason = "No available classroom with sufficient capacity at day " + (day + 1) + " slot "
+                                + (slot + 1);
+                        continue;
+                    }
+
+                    // All constraints satisfied - assign the exam
+                    ExamAssignment assignment = scheduleState.getAssignment(course.getCourseCode());
+                    scheduleState.updateAssignment(
+                            assignment.getCourseCode(),
+                            day,
+                            slot,
+                            selectedClassroom.getClassroomId());
+
+                    // Update tracking structures
+                    for (String studentId : enrolledStudents) {
+                        studentExams.computeIfAbsent(studentId, k -> new ArrayList<>())
+                                .add(new int[] { day, slot });
+                    }
+
+                    usedClassrooms.add(selectedClassroom.getClassroomId());
+                    slotClassrooms.put(slotKey, usedClassrooms);
+
+                    assigned = true;
+                    scheduledCount++;
                 }
-            } else {
-                updateProgress(attempt + 1, numRestarts,
-                        String.format("Attempt %d/%d: No valid schedule", attempt + 1, numRestarts));
+            }
+
+            if (!assigned) {
+                return ScheduleResult.failure(
+                        String.format("Could not schedule course %s. %s. " +
+                                "Scheduled %d/%d courses before failure. " +
+                                "Try increasing days/slots or reducing course conflicts.",
+                                course.getCourseCode(), failureReason, scheduledCount, totalCourses));
             }
         }
 
-        if (cancelled.get()) {
-            return ScheduleResult.cancelled();
+        // Validate final schedule
+        int violations = validateSchedule(scheduleState, studentExams);
+        scheduleState.setConstraintViolations(violations);
+
+        updateProgress(totalCourses, totalCourses,
+                String.format("Complete! Scheduled all %d courses.", totalCourses));
+
+        return ScheduleResult.success(scheduleState);
+    }
+
+    /**
+     * Build conflict graph - courses that share students cannot be scheduled at the
+     * same time.
+     */
+    private Map<String, Set<String>> buildConflictGraph(List<Course> courses) {
+        Map<String, Set<String>> conflictGraph = new HashMap<>();
+
+        // Map student to their courses
+        Map<String, Set<String>> studentCourses = new HashMap<>();
+        for (Course course : courses) {
+            for (String studentId : course.getEnrolledStudents()) {
+                studentCourses.computeIfAbsent(studentId, k -> new HashSet<>())
+                        .add(course.getCourseCode());
+            }
         }
 
-        if (bestSchedule != null) {
-            updateProgress(numRestarts, numRestarts,
-                    String.format("Complete! Best schedule: score %.1f (%d/%d attempts succeeded)",
-                            bestScore, successfulAttempts, numRestarts));
-            return ScheduleResult.success(bestSchedule);
-        } else {
-            return ScheduleResult.failure(
-                    "No valid schedule found in " + numRestarts + " attempts. " +
-                            "Try increasing days/slots or relaxing constraints.");
+        // Build conflict edges
+        for (Set<String> coursesOfStudent : studentCourses.values()) {
+            if (coursesOfStudent.size() > 1) {
+                List<String> courseList = new ArrayList<>(coursesOfStudent);
+                for (int i = 0; i < courseList.size(); i++) {
+                    for (int j = i + 1; j < courseList.size(); j++) {
+                        String c1 = courseList.get(i);
+                        String c2 = courseList.get(j);
+                        conflictGraph.computeIfAbsent(c1, k -> new HashSet<>()).add(c2);
+                        conflictGraph.computeIfAbsent(c2, k -> new HashSet<>()).add(c1);
+                    }
+                }
+            }
         }
+
+        return conflictGraph;
     }
 
     /**
@@ -113,7 +269,7 @@ public class ScheduleGeneratorService {
     private ScheduleState initializeScheduleState(ScheduleConfiguration config) {
         ScheduleState state = new ScheduleState();
 
-        // CRITICAL: Set configuration so ScheduleState knows about days/slots
+        // Set configuration so ScheduleState knows about days/slots
         state.setConfiguration(config);
 
         // Set available classrooms
@@ -133,257 +289,45 @@ public class ScheduleGeneratorService {
     }
 
     /**
-     * Backtracking algorithm core.
+     * Validate the final schedule and count any violations.
      */
-    private boolean backtrack(ScheduleState scheduleState, List<Course> courses, int courseIndex,
-            ScheduleConfiguration config) {
-        // Check cancellation
-        if (cancelled.get()) {
-            return false;
-        }
+    private int validateSchedule(ScheduleState scheduleState, Map<String, List<int[]>> studentExams) {
+        int violations = 0;
 
-        // Base case: all courses assigned
-        if (courseIndex >= courses.size()) {
-            return true;
-        }
+        for (Map.Entry<String, List<int[]>> entry : studentExams.entrySet()) {
+            List<int[]> exams = entry.getValue();
 
-        Course currentCourse = courses.get(courseIndex);
-
-        // Update progress
-        updateProgress(courseIndex, courses.size(),
-                "Scheduling " + currentCourse.getCourseCode() + "...");
-
-        ExamAssignment assignment = scheduleState.getAssignment(currentCourse.getCourseCode());
-
-        // Get time slots ordered by strategy
-        List<DaySlotPair> orderedTimeSlots = getTimeSlotsOrderedByStrategy(config, scheduleState);
-
-        // Try each time slot
-        for (DaySlotPair timeSlot : orderedTimeSlots) {
-            if (cancelled.get()) {
-                return false;
+            // Group exams by day
+            Map<Integer, List<Integer>> examsByDay = new HashMap<>();
+            for (int[] exam : exams) {
+                examsByDay.computeIfAbsent(exam[0], k -> new ArrayList<>()).add(exam[1]);
             }
 
-            // Get suitable classrooms for this day/slot (ordered by strategy)
-            List<Classroom> suitableClassrooms = getSuitableClassroomsOrdered(
-                    currentCourse, timeSlot.day, timeSlot.slot, scheduleState, config);
+            for (Map.Entry<Integer, List<Integer>> dayEntry : examsByDay.entrySet()) {
+                List<Integer> slots = dayEntry.getValue();
 
-            // Try each classroom
-            for (Classroom classroom : suitableClassrooms) {
-                // Temporarily assign (using updateAssignment to maintain assignedCourses counter)
-                scheduleState.updateAssignment(
-                        assignment.getCourseCode(),
-                        timeSlot.day,
-                        timeSlot.slot,
-                        classroom.getClassroomId()
-                );
+                // Check max 2 exams per day
+                if (slots.size() > MAX_EXAMS_PER_DAY) {
+                    violations++;
+                }
 
-                // Validate assignment - pass allowBackToBack from config
-                ConstraintValidator.ValidationResult validationResult = validator.validateAssignment(assignment,
-                        scheduleState, config.isAllowBackToBackExams());
+                // Check for concurrent exams (should not happen, but validate)
+                Set<Integer> uniqueSlots = new HashSet<>(slots);
+                if (uniqueSlots.size() != slots.size()) {
+                    violations++;
+                }
 
-                if (validationResult.isValid()) {
-                    // Assignment is valid, try to assign remaining courses
-                    if (backtrack(scheduleState, courses, courseIndex + 1, config)) {
-                        return true; // Success!
+                // Check break time
+                Collections.sort(slots);
+                for (int i = 1; i < slots.size(); i++) {
+                    if (slots.get(i) - slots.get(i - 1) <= MIN_BREAK_SLOTS) {
+                        violations++;
                     }
                 }
-
-                // Backtrack: reset assignment (using updateAssignment to maintain assignedCourses counter)
-                scheduleState.updateAssignment(
-                        assignment.getCourseCode(),
-                        -1,
-                        -1,
-                        null
-                );
             }
         }
 
-        // No valid assignment found
-        return false;
-    }
-
-    /**
-     * MRV Heuristic: Order courses by "most constrained first".
-     */
-    private List<Course> getCoursesOrderedByMRV() {
-        List<Course> courses = new ArrayList<>(dataManager.getCourses());
-
-        // Sort by number of enrolled students (descending)
-        // More students = more constrained
-        courses.sort((c1, c2) -> Integer.compare(
-                c2.getEnrolledStudentsCount(),
-                c1.getEnrolledStudentsCount()));
-
-        return courses;
-    }
-
-    /**
-     * Add small random perturbation to course order while preserving MRV bias.
-     * This creates diverse schedules for multi-restart optimization.
-     *
-     * @param courses Original course list
-     * @param seed    Seed for deterministic randomization
-     * @return Perturbed course list
-     */
-    private List<Course> perturbCourseOrder(List<Course> courses, int seed) {
-        Random random = new Random(seed * 1000L); // Deterministic seed for reproducibility
-        List<Course> perturbed = new ArrayList<>(courses);
-
-        // Swap 2-3 random pairs (limited perturbation maintains MRV benefits)
-        int swaps = 2 + random.nextInt(2);
-        for (int i = 0; i < swaps && perturbed.size() > 1; i++) {
-            int idx1 = random.nextInt(perturbed.size());
-            int idx2 = random.nextInt(perturbed.size());
-            Collections.swap(perturbed, idx1, idx2);
-        }
-
-        return perturbed;
-    }
-
-    /**
-     * Get time slots ordered by optimization strategy.
-     */
-    private List<DaySlotPair> getTimeSlotsOrderedByStrategy(ScheduleConfiguration config, ScheduleState scheduleState) {
-        List<DaySlotPair> timeSlots = new ArrayList<>();
-
-        // Generate all day/slot combinations
-        for (int day = 0; day < config.getNumDays(); day++) {
-            for (int slot = 0; slot < config.getSlotsPerDay(); slot++) {
-                timeSlots.add(new DaySlotPair(day, slot));
-            }
-        }
-
-        // Order based on strategy (deprecated strategies handled in ScheduleObjective)
-        switch (config.getOptimizationStrategy()) {
-            case MINIMIZE_DAYS:
-                // Already in order (day 0 slot 0, day 0 slot 1, ... day 1 slot 0, ...)
-                // This fills earlier days first
-                break;
-
-            case STUDENT_FRIENDLY:
-                // Fill each day completely before moving to next day
-                // Within each day, prefer middle slots (avoid early morning)
-                // Priority: slots 1 and 2 (middle of day) over slots 0 (early) and 3 (late)
-                timeSlots.sort((p1, p2) -> {
-                    // Primary: sort by day (fill Day 0 first, then Day 1, etc.)
-                    int dayCompare = Integer.compare(p1.day, p2.day);
-                    if (dayCompare != 0)
-                        return dayCompare;
-
-                    // Secondary: within same day, prefer middle slots
-                    // Slot priority order: 1 (best), 2 (good), 0 (early morning), 3 (late afternoon)
-                    int[] slotPriority = { 2, 0, 1, 3 }; // Maps slot index to priority (lower is better)
-                    int priority1 = p1.slot < slotPriority.length ? slotPriority[p1.slot] : p1.slot;
-                    int priority2 = p2.slot < slotPriority.length ? slotPriority[p2.slot] : p2.slot;
-                    return Integer.compare(priority1, priority2);
-                });
-                break;
-
-            default:
-                // DEFAULT or others: chronological order
-                break;
-        }
-
-        return timeSlots;
-    }
-
-    /**
-     * Get classrooms suitable for a course at a specific day and time slot,
-     * ordered according to optimization strategy.
-     */
-    private List<Classroom> getSuitableClassroomsOrdered(Course course,
-            int day,
-            int timeSlotIndex,
-            ScheduleState scheduleState,
-            ScheduleConfiguration config) {
-        List<Classroom> suitable = new ArrayList<>();
-
-        for (Classroom classroom : scheduleState.getAvailableClassrooms()) {
-            // Check capacity
-            if (classroom.getCapacity() < course.getEnrolledStudentsCount()) {
-                continue;
-            }
-
-            // Check if classroom is available at this time
-            boolean isAvailable = true;
-            for (ExamAssignment assignment : scheduleState.getAssignments().values()) {
-                if (assignment.isAssigned() &&
-                        assignment.getClassroomId().equals(classroom.getClassroomId()) &&
-                        assignment.getDay() == day &&
-                        assignment.getTimeSlotIndex() == timeSlotIndex) {
-                    isAvailable = false;
-                    break;
-                }
-            }
-
-            if (isAvailable) {
-                suitable.add(classroom);
-            }
-        }
-
-        // Order based on strategy (deprecated strategies handled in ScheduleObjective)
-        switch (config.getOptimizationStrategy()) {
-            case MINIMIZE_CLASSROOMS:
-                // Prefer classrooms that are already in use (reuse same classrooms)
-                suitable.sort((c1, c2) -> {
-                    int usage1 = getClassroomUsageCount(c1.getClassroomId(), scheduleState);
-                    int usage2 = getClassroomUsageCount(c2.getClassroomId(), scheduleState);
-                    // Sort descending (most used first)
-                    return Integer.compare(usage2, usage1);
-                });
-                break;
-
-            default:
-                // DEFAULT: Use round-robin to force distribution across classrooms
-                // Always prefer least-used classrooms to ensure multiple classrooms get used
-                suitable.sort((c1, c2) -> {
-                    int usage1 = getClassroomUsageCount(c1.getClassroomId(), scheduleState);
-                    int usage2 = getClassroomUsageCount(c2.getClassroomId(), scheduleState);
-
-                    // Primary: prefer least-used classrooms
-                    int usageCompare = Integer.compare(usage1, usage2);
-                    if (usageCompare != 0)
-                        return usageCompare;
-
-                    // Tiebreaker: prefer smaller capacity (efficient space usage)
-                    int capacityCompare = Integer.compare(c1.getCapacity(), c2.getCapacity());
-                    if (capacityCompare != 0)
-                        return capacityCompare;
-
-                    // Final tiebreaker: classroom ID (deterministic)
-                    return c1.getClassroomId().compareTo(c2.getClassroomId());
-                });
-                break;
-        }
-
-        return suitable;
-    }
-
-    /**
-     * Count how many times a classroom has been used in the current schedule.
-     */
-    private int getClassroomUsageCount(String classroomId, ScheduleState scheduleState) {
-        int count = 0;
-        for (ExamAssignment assignment : scheduleState.getAssignments().values()) {
-            if (assignment.isAssigned() && assignment.getClassroomId().equals(classroomId)) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    /**
-     * Helper class to represent a day/slot pair.
-     */
-    private static class DaySlotPair {
-        final int day;
-        final int slot;
-
-        DaySlotPair(int day, int slot) {
-            this.day = day;
-            this.slot = slot;
-        }
+        return violations;
     }
 
     /**
