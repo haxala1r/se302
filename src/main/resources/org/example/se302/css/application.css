@@ -824,6 +824,33 @@
     -fx-border-color: #334155;
 }
 
+/* Header Icon Buttons (Help, Theme Toggle) */
+.header-icon-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #1E293B;
+    /* slate-800 - dark for light mode */
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 8;
+    -fx-font-size: 18px;
+    -fx-cursor: hand;
+}
+
+.header-icon-button:hover {
+    -fx-text-fill: #4F46E5;
+    /* primary indigo on hover */
+}
+
+.root.dark .header-icon-button {
+    -fx-text-fill: white;
+    /* white for dark mode */
+}
+
+.root.dark .header-icon-button:hover {
+    -fx-text-fill: #A5B4FC;
+    /* lighter indigo on hover in dark mode */
+}
+
 /* Header */
 .root.dark .header {
     -fx-background-color: linear-gradient(to right, #4338CA, #6366F1);
