@@ -112,13 +112,16 @@ public class ScheduleGeneratorService {
             boolean assigned = false;
             String failureReason = "";
 
-            // Try each day and slot
-            dayLoop: for (int day = 0; day < config.getNumDays() && !assigned; day++) {
-                for (int slot = 0; slot < config.getSlotsPerDay() && !assigned; slot++) {
+            // Find all valid slots for this course
+            List<AssignmentCandidate> candidates = new ArrayList<>();
+
+            // Try each day and slot to find all valid candidates
+            for (int day = 0; day < config.getNumDays(); day++) {
+                for (int slot = 0; slot < config.getSlotsPerDay(); slot++) {
                     // Check if this slot is valid for all enrolled students
                     String slotKey = day + "-" + slot;
                     boolean slotValid = true;
-                    String reason = "";
+                    // String reason = ""; // Reason not needed for non-blocking check
 
                     for (String studentId : enrolledStudents) {
                         // Check constraint 1: No concurrent exams
@@ -126,7 +129,6 @@ public class ScheduleGeneratorService {
                         for (int[] exam : studentExamList) {
                             if (exam[0] == day && exam[1] == slot) {
                                 slotValid = false;
-                                reason = "Student " + studentId + " already has exam at this time";
                                 break;
                             }
                         }
@@ -141,8 +143,6 @@ public class ScheduleGeneratorService {
                         }
                         if (examsToday >= MAX_EXAMS_PER_DAY) {
                             slotValid = false;
-                            reason = "Student " + studentId + " already has " + MAX_EXAMS_PER_DAY + " exams on day "
-                                    + (day + 1);
                             break;
                         }
 
@@ -152,7 +152,6 @@ public class ScheduleGeneratorService {
                                 int slotDiff = Math.abs(exam[1] - slot);
                                 if (slotDiff > 0 && slotDiff <= MIN_BREAK_SLOTS) {
                                     slotValid = false;
-                                    reason = "Student " + studentId + " needs at least 1 hour break between exams";
                                     break;
                                 }
                             }
@@ -162,7 +161,6 @@ public class ScheduleGeneratorService {
                     }
 
                     if (!slotValid) {
-                        failureReason = reason;
                         continue;
                     }
 
@@ -182,41 +180,44 @@ public class ScheduleGeneratorService {
                         }
                     }
 
-                    if (selectedClassroom == null) {
-                        failureReason = "No available classroom with sufficient capacity at day " + (day + 1) + " slot "
-                                + (slot + 1);
-                        continue;
+                    if (selectedClassroom != null) {
+                        candidates.add(new AssignmentCandidate(day, slot, selectedClassroom));
                     }
-
-                    // All constraints satisfied - assign the exam
-                    ExamAssignment assignment = scheduleState.getAssignment(course.getCourseCode());
-                    scheduleState.updateAssignment(
-                            assignment.getCourseCode(),
-                            day,
-                            slot,
-                            selectedClassroom.getClassroomId());
-
-                    // Update tracking structures
-                    for (String studentId : enrolledStudents) {
-                        studentExams.computeIfAbsent(studentId, k -> new ArrayList<>())
-                                .add(new int[] { day, slot });
-                    }
-
-                    usedClassrooms.add(selectedClassroom.getClassroomId());
-                    slotClassrooms.put(slotKey, usedClassrooms);
-
-                    assigned = true;
-                    scheduledCount++;
                 }
             }
 
-            if (!assigned) {
+            if (candidates.isEmpty()) {
                 return ScheduleResult.failure(
-                        String.format("Could not schedule course %s. %s. " +
+                        String.format("Could not schedule course %s. No valid time slots found. " +
                                 "Scheduled %d/%d courses before failure. " +
                                 "Try increasing days/slots or reducing course conflicts.",
-                                course.getCourseCode(), failureReason, scheduledCount, totalCourses));
+                                course.getCourseCode(), scheduledCount, totalCourses));
             }
+
+            // Select the best candidate based on optimization strategy
+            AssignmentCandidate bestCandidate = selectBestCandidate(candidates, config, studentExams, enrolledStudents,
+                    slotClassrooms);
+
+            // Assign the exam
+            ExamAssignment assignment = scheduleState.getAssignment(course.getCourseCode());
+            scheduleState.updateAssignment(
+                    assignment.getCourseCode(),
+                    bestCandidate.day,
+                    bestCandidate.slot,
+                    bestCandidate.classroom.getClassroomId());
+
+            // Update tracking structures
+            for (String studentId : enrolledStudents) {
+                studentExams.computeIfAbsent(studentId, k -> new ArrayList<>())
+                        .add(new int[] { bestCandidate.day, bestCandidate.slot });
+            }
+
+            String slotKey = bestCandidate.day + "-" + bestCandidate.slot;
+            Set<String> usedClassrooms = slotClassrooms.getOrDefault(slotKey, new HashSet<>());
+            usedClassrooms.add(bestCandidate.classroom.getClassroomId());
+            slotClassrooms.put(slotKey, usedClassrooms);
+
+            scheduledCount++;
         }
 
         // Validate final schedule
@@ -409,6 +410,116 @@ public class ScheduleGeneratorService {
 
         public boolean wasCancelled() {
             return wasCancelled;
+        }
+    }
+
+    /**
+     * Selects the best assignment candidate based on the optimization strategy.
+     */
+    private AssignmentCandidate selectBestCandidate(
+            List<AssignmentCandidate> candidates,
+            ScheduleConfiguration config,
+            Map<String, List<int[]>> studentExams,
+            Set<String> enrolledStudents,
+            Map<String, Set<String>> slotClassrooms) {
+
+        ScheduleConfiguration.OptimizationStrategy strategy = config.getOptimizationStrategy();
+
+        // Handle default/null strategy
+        if (strategy == null || strategy == ScheduleConfiguration.OptimizationStrategy.DEFAULT) {
+            strategy = ScheduleConfiguration.OptimizationStrategy.STUDENT_FRIENDLY;
+        } else if (strategy == ScheduleConfiguration.OptimizationStrategy.BALANCED_DISTRIBUTION) {
+            strategy = ScheduleConfiguration.OptimizationStrategy.STUDENT_FRIENDLY;
+        } else if (strategy == ScheduleConfiguration.OptimizationStrategy.BALANCE_CLASSROOMS) {
+            strategy = ScheduleConfiguration.OptimizationStrategy.MINIMIZE_CLASSROOMS;
+        }
+
+        switch (strategy) {
+            case MINIMIZE_DAYS:
+                // Sort by Day (primary) then Slot (secondary)
+                candidates.sort(Comparator.comparingInt((AssignmentCandidate c) -> c.day)
+                        .thenComparingInt(c -> c.slot));
+                break;
+
+            case MINIMIZE_CLASSROOMS:
+                // Sort by Number of Exams in that Slot (Ascending)
+                // To minimize MAX concurrent classrooms, we should prefer slots with FEWER
+                // exams
+                // so we don't increase the peak usage.
+                candidates.sort(Comparator.comparingInt((AssignmentCandidate c) -> {
+                    String key = c.day + "-" + c.slot;
+                    return slotClassrooms.getOrDefault(key, Collections.emptySet()).size();
+                }).thenComparingInt(c -> c.day)); // Tiebreaker: earlier days
+                break;
+
+            case STUDENT_FRIENDLY:
+            default:
+                // Sort by Penalty Score (Lower is better)
+                candidates.sort(Comparator.comparingDouble((AssignmentCandidate c) -> {
+                    return calculateStudentFriendlyPenalty(c, studentExams, enrolledStudents);
+                }));
+                break;
+        }
+
+        // Return best (first)
+        return candidates.get(0);
+    }
+
+    /**
+     * Calculates penalty for student-friendly reference.
+     * Higher penalty = worse for students.
+     */
+    private double calculateStudentFriendlyPenalty(
+            AssignmentCandidate candidate,
+            Map<String, List<int[]>> studentExams,
+            Set<String> enrolledStudents) {
+
+        double penalty = 0.0;
+
+        for (String studentId : enrolledStudents) {
+            List<int[]> exams = studentExams.get(studentId);
+            if (exams == null || exams.isEmpty())
+                continue;
+
+            for (int[] exam : exams) {
+                // If exam is on the same day
+                if (exam[0] == candidate.day) {
+                    int gap = Math.abs(exam[1] - candidate.slot) - 1;
+                    // Gap 0 = Back to Back (if allowed). Penalty = 50
+                    // Gap 1 = 1 slot break. Penalty = 10
+                    // Gap 2 = 2 slot break. Penalty = 0 (Good)
+                    if (gap == 0)
+                        penalty += 50.0;
+                    else if (gap == 1)
+                        penalty += 10.0;
+                }
+
+                // Consecutive days penalty
+                if (Math.abs(exam[0] - candidate.day) == 1) {
+                    penalty += 5.0;
+                }
+            }
+        }
+
+        // Tie-breaker: Prefer earlier days/slots slightly
+        penalty += candidate.day * 0.1;
+        penalty += candidate.slot * 0.01;
+
+        return penalty;
+    }
+
+    /**
+     * Helper class for candidates.
+     */
+    private static class AssignmentCandidate {
+        final int day;
+        final int slot;
+        final Classroom classroom;
+
+        public AssignmentCandidate(int day, int slot, Classroom classroom) {
+            this.day = day;
+            this.slot = slot;
+            this.classroom = classroom;
         }
     }
 }
